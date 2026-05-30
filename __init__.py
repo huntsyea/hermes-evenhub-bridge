@@ -16,9 +16,13 @@ def _env_enablement():
     constructed. Returns None (skip) when no token is configured."""
     if not os.environ.get("EVENHUB_BRIDGE_TOKEN"):
         return None
+    try:
+        port = int(os.environ.get("EVENHUB_BRIDGE_PORT", "8765"))
+    except ValueError:
+        port = 8765
     return {
         "host": os.environ.get("EVENHUB_BRIDGE_HOST", "0.0.0.0"),
-        "port": int(os.environ.get("EVENHUB_BRIDGE_PORT", "8765")),
+        "port": port,
     }
 
 
