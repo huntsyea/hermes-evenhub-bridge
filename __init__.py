@@ -10,6 +10,18 @@ __version__ = "0.3.0"
 log = logging.getLogger("hermes-evenhub-bridge")
 
 
+def _env_enablement():
+    """Seed PlatformConfig.extra from env so an env-only setup (token in the
+    environment) surfaces in `hermes gateway status` before the adapter is
+    constructed. Returns None (skip) when no token is configured."""
+    if not os.environ.get("EVENHUB_BRIDGE_TOKEN"):
+        return None
+    return {
+        "host": os.environ.get("EVENHUB_BRIDGE_HOST", "0.0.0.0"),
+        "port": int(os.environ.get("EVENHUB_BRIDGE_PORT", "8765")),
+    }
+
+
 def register(ctx) -> None:
     from ._bootstrap import ensure_runtime_deps
 
@@ -44,6 +56,8 @@ def register(ctx) -> None:
         label="Even Realities G2",
         adapter_factory=adapter_factory,
         check_fn=check_fn,
+        required_env=["EVENHUB_BRIDGE_TOKEN"],
+        env_enablement_fn=_env_enablement,
         emoji="👓",
         cron_deliver_env_var="EVEN_G2_HOME_CHANNEL",
         platform_hint=("You are talking to the user through Even Realities G2 "
