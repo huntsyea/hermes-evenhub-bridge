@@ -136,10 +136,12 @@ class EvenG2Adapter(BasePlatformAdapter):
         env_key = "EVEN_G2_HOME_CHANNEL"
         if os.environ.get(env_key):
             return
-        os.environ[env_key] = str(chat_id)
+        os.environ[env_key] = chat_id
         try:
+            # Import inside the function so tests can monkeypatch
+            # hermes_cli.config.save_env_value without patching this module's namespace.
             from hermes_cli.config import save_env_value
-            save_env_value(env_key, str(chat_id))
+            save_env_value(env_key, chat_id)
         except Exception as e:  # persistence is best-effort; process env still suppresses it
             log.warning("could not persist %s: %s", env_key, e)
 
