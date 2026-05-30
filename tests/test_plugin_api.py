@@ -42,6 +42,19 @@ def test_config_roundtrip(monkeypatch, tmp_path):
     assert "asr_model" not in got
 
 
+@pytest.mark.gateway  # config endpoints import hermes_cli (part of the Hermes install)
+def test_config_port_out_of_range_falls_back_to_default(monkeypatch, tmp_path):
+    pytest.importorskip("hermes_cli.config")
+    mod = _load_router(monkeypatch, tmp_path)
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    r = client.post("/api/plugins/g2/config",
+                    json={"ws_host": "0.0.0.0", "ws_port": 99999})
+    assert r.status_code == 200
+    assert r.json()["ws_port"] == 8765
+    assert client.get("/api/plugins/g2/config").json()["ws_port"] == 8765
+
+
 def test_get_asr_models(monkeypatch, tmp_path):
     monkeypatch.setenv("EVENHUB_ASR_STATE", str(tmp_path / "asr.json"))
     mod = _load_router(monkeypatch, tmp_path)
