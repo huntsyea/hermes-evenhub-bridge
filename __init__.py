@@ -19,6 +19,7 @@ def register(ctx) -> None:
         adapter_factory=_factory,
         check_fn=lambda: bool(os.environ.get("EVENHUB_BRIDGE_TOKEN")),
         emoji="👓",
+        cron_deliver_env_var="EVEN_G2_HOME_CHANNEL",
         platform_hint=("You are talking to the user through Even Realities G2 "
                        "smart glasses with a tiny display; keep replies short."),
     )
