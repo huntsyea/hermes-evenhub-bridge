@@ -38,7 +38,7 @@ Get the ready-to-use URL (prefers your Tailscale MagicDNS name, which works from
 anywhere on the tailnet; otherwise the LAN IP):
 
 ```bash
-hermes-evenhub-bridge url
+hermes even-g2 url
 ```
 
 It's also shown on the **Even Realities G2** dashboard tab (`/even-g2`) as **Glasses
@@ -59,8 +59,8 @@ Silicon)**, click **Download** on the dashboard's transcription panel — it aut
 the prebuilt sidecar binary and model weights. Or from the CLI:
 
 ```bash
-hermes-evenhub-bridge asr download parakeet-tdt-0.6b-v2
-hermes-evenhub-bridge asr set parakeet-tdt-0.6b-v2
+hermes even-g2 asr download parakeet-tdt-0.6b-v2
+hermes even-g2 asr set parakeet-tdt-0.6b-v2
 ```
 
 > The sidecar is Developer ID signed + notarized, so it runs without Gatekeeper prompts.

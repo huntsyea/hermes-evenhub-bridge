@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 log = logging.getLogger("hermes-evenhub-bridge")
 
@@ -70,6 +70,16 @@ def register(ctx) -> None:
     if deps_ok:
         ctx.register_hook("pre_tool_call", hooks.pre_tool_call)
         ctx.register_hook("post_tool_call", hooks.post_tool_call)
+
+    # User-facing CLI: `hermes even-g2 url|asr ...` (import-light; handlers lazy).
+    from . import cli
+    if hasattr(ctx, "register_cli_command"):
+        ctx.register_cli_command(
+            name="even-g2",
+            help="Even Realities G2 bridge — connection URL + ASR models",
+            setup_fn=cli.setup_parser,
+            handler_fn=cli.run,
+        )
 
 
 def main() -> None:

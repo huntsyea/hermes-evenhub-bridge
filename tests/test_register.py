@@ -9,10 +9,13 @@ class FakeCtx:
     def __init__(self):
         self.platform = None
         self.hooks = []
+        self.cli_commands = {}
     def register_platform(self, **kw):
         self.platform = kw
     def register_hook(self, name, cb):
         self.hooks.append(name)
+    def register_cli_command(self, **kw):
+        self.cli_commands[kw["name"]] = kw
 
 
 def test_register_wires_platform_and_hooks():
@@ -54,3 +57,11 @@ def test_register_declares_required_env_and_enablement():
     pkg.register(ctx)
     assert ctx.platform["required_env"] == ["EVENHUB_BRIDGE_TOKEN"]
     assert callable(ctx.platform["env_enablement_fn"])
+
+
+def test_register_registers_cli_command():
+    ctx = FakeCtx()
+    pkg.register(ctx)
+    assert "even-g2" in ctx.cli_commands
+    cmd = ctx.cli_commands["even-g2"]
+    assert callable(cmd["setup_fn"]) and callable(cmd["handler_fn"])
