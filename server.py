@@ -23,13 +23,13 @@ class BridgeServer:
         self._server = None
         self.port = 0
 
-    async def start(self) -> int:
+    async def start(self, bind_host: str | None = None) -> int:
         if not self._cfg.token:
             log.warning(
                 "EVENHUB_BRIDGE_TOKEN is empty; the G2 bridge will reject all "
                 "connections until a pairing token is configured")
         self._server = await websockets.serve(
-            self._handle, self._cfg.ws_host, self._cfg.ws_port)
+            self._handle, bind_host or self._cfg.ws_host, self._cfg.ws_port)
         self.port = self._server.sockets[0].getsockname()[1]
         return self.port
 

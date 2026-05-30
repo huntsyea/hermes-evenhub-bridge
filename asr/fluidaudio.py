@@ -51,7 +51,11 @@ class FluidAudioBackend:
 
     def ensure_downloaded(self) -> None:
         if not Path(self._binary).exists():
-            raise ASRUnavailable("sidecar binary not built")
+            # Try to auto-fetch a prebuilt sidecar (macOS/arm64) before giving up.
+            from .sidecar_install import ensure_sidecar_binary
+            from .. import __version__
+            if not ensure_sidecar_binary(__version__, self._binary, log):
+                raise ASRUnavailable("sidecar binary not built")
         r = subprocess.run([self._binary, *self._download_args], timeout=600)
         if r.returncode != 0:
             raise ASRUnavailable(f"model download failed (exit {r.returncode})")

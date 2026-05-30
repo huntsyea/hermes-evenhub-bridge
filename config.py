@@ -2,25 +2,43 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+_NET_MODES = ("both", "tailnet", "lan")
+
+
+def hermes_home() -> Path:
+    return Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+
+
+def default_sidecar_bin() -> str:
+    """Absolute cache path for the auto-downloaded sidecar binary.
+
+    The old repo-relative default (``sidecar/.build/release/...``) only resolved
+    when run from the source tree; an installed plugin needs a stable location.
+    """
+    return str(hermes_home() / "even_g2" / "bin" / "g2-asr-sidecar")
+
 
 @dataclass
 class BridgeConfig:
     ws_host: str = "0.0.0.0"
     ws_port: int = 8765
     token: str = ""
-    asr_sidecar_bin: str = "sidecar/.build/release/g2-asr-sidecar"
+    asr_sidecar_bin: str = ""
     asr_state_path: str = ""
+    net_mode: str = "both"
 
     @classmethod
     def from_env(cls) -> "BridgeConfig":
+        net = (os.environ.get("EVENHUB_BRIDGE_NET", "both") or "both").strip().lower()
+        if net not in _NET_MODES:
+            net = "both"
         return cls(
             ws_host=os.environ.get("EVENHUB_BRIDGE_HOST", "0.0.0.0"),
             ws_port=int(os.environ.get("EVENHUB_BRIDGE_PORT", "8765")),
             token=os.environ.get("EVENHUB_BRIDGE_TOKEN", ""),
-            asr_sidecar_bin=os.environ.get(
-                "EVENHUB_ASR_SIDECAR_BIN", "sidecar/.build/release/g2-asr-sidecar"),
+            asr_sidecar_bin=os.environ.get("EVENHUB_ASR_SIDECAR_BIN", default_sidecar_bin()),
             asr_state_path=os.environ.get(
                 "EVENHUB_ASR_STATE",
-                str(Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
-                    / "even_g2_asr.json")),
+                str(hermes_home() / "even_g2_asr.json")),
+            net_mode=net,
         )

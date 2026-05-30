@@ -146,11 +146,19 @@
           h("span", null, "mic: " + status.mic),
           h("span", null, "session: " + (status.active_session || "—")))),
       Section("Connection",
-        h("div", { style: { display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" } },
-          h(C.Label, null, "Host"),
-          h(C.Input, { value: cfg.ws_host, onChange: set("ws_host") }),
-          h(C.Label, null, "Port"),
-          h(C.Input, { value: String(cfg.ws_port), onChange: set("ws_port") }))),
+        h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } },
+          h("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+            h(C.Label, null, "Glasses URL"),
+            h("code", { style: { fontSize: "13px", background: "#0f172a", padding: "3px 8px", borderRadius: "4px", color: "#e2e8f0" } }, status.connect_url || "—"),
+            (status.tailscale_dns || status.tailscale_ip)
+              ? h(C.Badge, { style: { background: "#1e3a8a" } }, "tailscale: " + (status.tailscale_dns || status.tailscale_ip))
+              : h("span", { style: { fontSize: "12px", color: "#94a3b8" } }, "LAN only"),
+            h("span", { style: { fontSize: "12px", color: "#94a3b8" } }, "(" + (status.net_mode || "both") + ")")),
+          h("div", { style: { display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" } },
+            h(C.Label, null, "Host"),
+            h(C.Input, { value: cfg.ws_host, onChange: set("ws_host") }),
+            h(C.Label, null, "Port"),
+            h(C.Input, { value: String(cfg.ws_port), onChange: set("ws_port") })))),
       h(TranscriptionPanel, null),
       h(C.Button, { onClick: save }, "Save"));
   }

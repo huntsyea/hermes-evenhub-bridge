@@ -19,6 +19,10 @@ _DEFAULTS: Dict[str, Any] = {
     "connected": 0,
     "mic": "off",
     "active_session": "",
+    "connect_url": "",
+    "tailscale_dns": "",
+    "tailscale_ip": "",
+    "net_mode": "both",
     "updated_at": 0.0,
 }
 

@@ -74,9 +74,9 @@ def _build_backend(name: str, bridge_cfg):
     spec = REGISTRY[name]
     if spec.backend == "whisper":
         return WhisperBackend(spec.model_size or "tiny")
+    from ..config import default_sidecar_bin
     return FluidAudioBackend(
-        binary_path=getattr(bridge_cfg, "asr_sidecar_bin",
-                            "sidecar/.build/release/g2-asr-sidecar"),
+        binary_path=getattr(bridge_cfg, "asr_sidecar_bin", "") or default_sidecar_bin(),
         model_version=spec.model_version or "v2",
     )
 

@@ -1,8 +1,6 @@
 import argparse
 import asyncio
 
-from gateway.config import PlatformConfig
-from .adapter import EvenG2Adapter
 from .config import BridgeConfig
 from . import asr as asr_pkg
 from .asr import REGISTRY
@@ -10,6 +8,8 @@ from .asr.state import set_active, get_active
 
 
 async def _run_server():
+    from gateway.config import PlatformConfig  # gateway only needed to run the server
+    from .adapter import EvenG2Adapter
     adapter = EvenG2Adapter(PlatformConfig(extra={}))
     await adapter.connect()
     print(f"[evenhub-bridge] listening on port {adapter.bound_port}")
@@ -46,6 +46,20 @@ def _cmd_asr(args) -> int:
     return 2
 
 
+def _cmd_url() -> int:
+    from . import net
+    cfg = BridgeConfig.from_env()
+    ts = net.detect_tailscale()
+    print(net.preferred_connect_url(cfg, ts))
+    if ts and (ts.get("magic_dns") or ts.get("ip")):
+        print(f"  tailscale: {ts.get('magic_dns') or ts.get('ip')} "
+              f"(online={ts.get('online')})")
+    print(f"  net_mode: {cfg.net_mode}  (set EVENHUB_BRIDGE_NET=both|tailnet|lan)")
+    print("  Use this URL for VITE_BRIDGE_LAN_URL in the glasses app's .env.local,")
+    print("  and add it to app.json's network whitelist (exact match).")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="hermes-evenhub-bridge")
     sub = parser.add_subparsers(dest="cmd")
@@ -58,10 +72,14 @@ def main(argv=None) -> int:
     s = asr_sub.add_parser("set", help="Set the active ASR model")
     s.add_argument("name", help="Model name from registry")
 
+    sub.add_parser("url", help="Print the ws:// URL the glasses should connect to")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "asr":
         return _cmd_asr(args)
+    if args.cmd == "url":
+        return _cmd_url()
 
     # Default: run the bridge server (existing behavior)
     asyncio.run(_run_server())

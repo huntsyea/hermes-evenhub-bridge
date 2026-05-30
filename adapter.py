@@ -47,13 +47,23 @@ class EvenG2Adapter(BasePlatformAdapter):
         return self._server.port
 
     async def connect(self) -> bool:
-        await self._server.start()
+        from . import net
+        ts = net.detect_tailscale()
+        bind = net.bind_host(self._bridge_cfg, ts)
+        connect_url = net.preferred_connect_url(self._bridge_cfg, ts)
+        await self._server.start(bind)
         try:
             self._loop = asyncio.get_running_loop()
             self._mark_connected()
-            self._status.update(connected=0, mic="off", active_session="")
-            log.info("EvenG2 adapter listening on %s:%s",
-                     self._bridge_cfg.ws_host, self._server.port)
+            self._status.update(
+                connected=0, mic="off", active_session="",
+                connect_url=connect_url,
+                tailscale_dns=(ts or {}).get("magic_dns", ""),
+                tailscale_ip=(ts or {}).get("ip", ""),
+                net_mode=self._bridge_cfg.net_mode,
+            )
+            log.info("EvenG2 adapter listening on %s:%s — glasses URL: %s",
+                     bind, self._server.port, connect_url)
             return True
         except Exception:
             # Don't leave the socket listening if post-start setup fails.
