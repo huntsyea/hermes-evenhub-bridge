@@ -126,6 +126,12 @@ class EvenG2Adapter(BasePlatformAdapter):
 
     async def on_sessions_new(self, chat_id: str) -> None:
         await self._dispatch_command(chat_id, "/new")
+        # /new resets the active pointer; materialize the fresh session so it is
+        # persisted and visible, mark it active, then push the updated list.
+        source = self._source_for(chat_id)
+        entry = self._session_store.get_or_create_session(source)
+        self._session_by_chat[chat_id] = entry.session_id
+        await self.on_sessions_list(chat_id)
 
     async def on_stop(self, chat_id: str) -> None:
         await self._dispatch_command(chat_id, "/stop")
