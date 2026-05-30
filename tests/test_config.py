@@ -6,6 +6,11 @@ def test_from_env_picks_up_port(monkeypatch):
     assert BridgeConfig.from_env().ws_port == 9999
 
 
+def test_from_env_invalid_port_falls_back_to_default(monkeypatch):
+    monkeypatch.setenv("EVENHUB_BRIDGE_PORT", "not-int")
+    assert BridgeConfig.from_env().ws_port == 8765
+
+
 def test_from_env_picks_up_token(monkeypatch):
     monkeypatch.setenv("EVENHUB_BRIDGE_TOKEN", "tok")
     cfg = BridgeConfig.from_env()

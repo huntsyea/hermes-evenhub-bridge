@@ -41,9 +41,13 @@ class BridgeConfig:
         net = (os.environ.get("EVENHUB_BRIDGE_NET", "both") or "both").strip().lower()
         if net not in _NET_MODES:
             net = "both"
+        try:
+            ws_port = int(os.environ.get("EVENHUB_BRIDGE_PORT", "8765"))
+        except ValueError:
+            ws_port = 8765
         return cls(
             ws_host=os.environ.get("EVENHUB_BRIDGE_HOST", "0.0.0.0"),
-            ws_port=int(os.environ.get("EVENHUB_BRIDGE_PORT", "8765")),
+            ws_port=ws_port,
             token=os.environ.get("EVENHUB_BRIDGE_TOKEN", ""),
             asr_sidecar_bin=os.environ.get("EVENHUB_ASR_SIDECAR_BIN", default_sidecar_bin()),
             asr_state_path=os.environ.get(
