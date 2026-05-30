@@ -114,7 +114,7 @@
   function EvenG2Page() {
     var s = useState({ connected: 0, mic: "off", active_session: "" });
     var status = s[0], setStatus = s[1];
-    var c = useState({ ws_host: "", ws_port: 8765, asr_model: "base" });
+    var c = useState({ ws_host: "", ws_port: 8765 });
     var cfg = c[0], setCfg = c[1];
 
     useEffect(function () {
@@ -151,13 +151,6 @@
           h(C.Input, { value: cfg.ws_host, onChange: set("ws_host") }),
           h(C.Label, null, "Port"),
           h(C.Input, { value: String(cfg.ws_port), onChange: set("ws_port") }))),
-      Section("Voice / transcription",
-        h("div", { style: { display: "flex", gap: "12px", alignItems: "center" } },
-          h(C.Label, null, "Model"),
-          h(C.Select, { value: cfg.asr_model, onChange: set("asr_model") },
-            h(C.SelectOption, { value: "base" }, "base"),
-            h(C.SelectOption, { value: "small" }, "small"),
-            h(C.SelectOption, { value: "medium" }, "medium")))),
       h(TranscriptionPanel, null),
       h(C.Button, { onClick: save }, "Save"));
   }

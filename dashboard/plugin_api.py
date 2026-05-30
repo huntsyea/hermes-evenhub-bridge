@@ -15,13 +15,12 @@ from hermes_evenhub_bridge.asr.state import get_active, set_active
 
 router = APIRouter()
 _CONFIG_SECTION = "even_g2"
-_DEFAULT_CONFIG = {"ws_host": "0.0.0.0", "ws_port": 8765, "asr_model": "base"}
+_DEFAULT_CONFIG = {"ws_host": "0.0.0.0", "ws_port": 8765}
 
 
 class G2Config(BaseModel):
     ws_host: str = "0.0.0.0"
     ws_port: int = 8765
-    asr_model: str = "base"
 
 
 @router.get("/status")
