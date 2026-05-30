@@ -37,7 +37,6 @@ def _sidecar_status(cfg: BridgeConfig) -> dict:
         "path": path,
         "installed": installed,
         "supported": supported,
-        "downloadable": supported,
     }
 
 
@@ -77,7 +76,7 @@ def asr_models():
     for name, spec in REGISTRY.items():
         if spec.backend == "fluidaudio":
             installed = False
-            downloadable = sidecar["downloadable"] or sidecar["installed"]
+            downloadable = sidecar["supported"] or sidecar["installed"]
         else:
             try:
                 installed = asr_pkg._build_backend(name, cfg).is_installed()
