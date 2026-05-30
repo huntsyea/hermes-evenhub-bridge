@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 _NET_MODES = ("both", "tailnet", "lan")
+DEFAULT_WS_PORT = 8765
+_MAX_PORT = 65535
 
 
 def hermes_home() -> Path:
@@ -27,6 +29,16 @@ def default_sidecar_bin() -> str:
     return str(hermes_home() / "even_g2" / "bin" / "g2-asr-sidecar")
 
 
+def parse_ws_port(value: str | None) -> int:
+    try:
+        port = int(value or str(DEFAULT_WS_PORT))
+    except ValueError:
+        return DEFAULT_WS_PORT
+    if 0 <= port <= _MAX_PORT:
+        return port
+    return DEFAULT_WS_PORT
+
+
 @dataclass
 class BridgeConfig:
     ws_host: str = "0.0.0.0"
@@ -41,13 +53,9 @@ class BridgeConfig:
         net = (os.environ.get("EVENHUB_BRIDGE_NET", "both") or "both").strip().lower()
         if net not in _NET_MODES:
             net = "both"
-        try:
-            ws_port = int(os.environ.get("EVENHUB_BRIDGE_PORT", "8765"))
-        except ValueError:
-            ws_port = 8765
         return cls(
             ws_host=os.environ.get("EVENHUB_BRIDGE_HOST", "0.0.0.0"),
-            ws_port=ws_port,
+            ws_port=parse_ws_port(os.environ.get("EVENHUB_BRIDGE_PORT")),
             token=os.environ.get("EVENHUB_BRIDGE_TOKEN", ""),
             asr_sidecar_bin=os.environ.get("EVENHUB_ASR_SIDECAR_BIN", default_sidecar_bin()),
             asr_state_path=os.environ.get(
