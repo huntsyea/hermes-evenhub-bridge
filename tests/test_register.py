@@ -47,3 +47,10 @@ def test_register_sets_cron_deliver_env_var():
     ctx = FakeCtx()
     pkg.register(ctx)
     assert ctx.platform["cron_deliver_env_var"] == "EVEN_G2_HOME_CHANNEL"
+
+
+def test_register_declares_required_env_and_enablement():
+    ctx = FakeCtx()
+    pkg.register(ctx)
+    assert ctx.platform["required_env"] == ["EVENHUB_BRIDGE_TOKEN"]
+    assert callable(ctx.platform["env_enablement_fn"])
