@@ -16,6 +16,7 @@ from .connections import ConnectionRegistry
 from . import protocol as P
 from .server import BridgeServer
 from .status import StatusFile
+from .asr import load_active, resolve_active_name
 
 log = logging.getLogger("hermes-evenhub-bridge")
 
@@ -169,8 +170,8 @@ class EvenG2Adapter(BasePlatformAdapter):
 
     def _get_transcriber(self):
         if self._transcriber is None:
-            from .asr import Transcriber
-            self._transcriber = Transcriber(self._bridge_cfg.asr_model)
+            from .asr import load_active
+            self._transcriber = load_active(self._bridge_cfg)
         return self._transcriber
 
     def refresh_status(self) -> None:
