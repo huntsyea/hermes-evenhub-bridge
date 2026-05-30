@@ -5,7 +5,10 @@ the ConnectionRegistry, not pulled here."""
 from __future__ import annotations
 
 import contextlib
+import hmac
 import logging
+import os
+
 import websockets
 
 from . import protocol as P
@@ -13,6 +16,11 @@ from .config import BridgeConfig
 from .connections import ConnectionRegistry
 
 log = logging.getLogger("hermes-evenhub-bridge")
+
+# Cap buffered PCM per audio.start stream so an authenticated client can't OOM the
+# gateway by flooding binary frames. ~8 MiB ≈ 4 min of 16 kHz mono 16-bit PCM.
+# Override via EVENHUB_MAX_PCM_BYTES (also lets tests use a tiny cap).
+_MAX_PCM_BYTES = int(os.environ.get("EVENHUB_MAX_PCM_BYTES", 8 * 1024 * 1024))
 
 
 class BridgeServer:
@@ -46,9 +54,14 @@ class BridgeServer:
                 await ws.close(code=1008, reason="bad hello")
             return
         # An empty configured token means no pairing secret is set -> refuse all.
-        if (not self._cfg.token
-                or hello.get("t") != "hello"
-                or hello.get("token") != self._cfg.token):
+        # Constant-time compare so the token isn't probeable via response timing.
+        client_tok = hello.get("token")
+        authed = (
+            bool(self._cfg.token)
+            and isinstance(client_tok, str)
+            and hmac.compare_digest(client_tok, self._cfg.token)
+        )
+        if hello.get("t") != "hello" or not authed:
             with contextlib.suppress(Exception):
                 await ws.close(code=1008, reason="unauthorized")
             return
@@ -61,7 +74,12 @@ class BridgeServer:
             async for raw in ws:
                 if isinstance(raw, (bytes, bytearray)):
                     if pcm is not None:
-                        pcm.extend(raw)
+                        if len(pcm) + len(raw) > _MAX_PCM_BYTES:
+                            # Overflow: drop the stream rather than buffer unbounded.
+                            pcm = None
+                            await ws.send(P.error("audio stream too large"))
+                        else:
+                            pcm.extend(raw)
                     continue
                 try:
                     msg = P.parse_client(raw)

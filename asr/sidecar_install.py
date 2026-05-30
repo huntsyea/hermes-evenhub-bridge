@@ -19,6 +19,11 @@ from pathlib import Path
 
 RELEASE_REPO = "huntsyea/hermes-evenhub-bridge"
 ASSET_NAME = "g2-asr-sidecar-macos-arm64"
+# Apple Developer Team ID the official sidecar is signed with. The sha256 only
+# protects transit (it comes from the same origin as the binary); verifying the
+# Developer ID signature pins the publisher. Forks shipping their own binary set
+# EVENHUB_ASR_SIDECAR_TEAM_ID to their team, or "" to disable the check.
+DEVELOPER_ID_TEAM = "5J4FVDUC9M"
 
 
 def is_supported_platform() -> bool:
@@ -49,6 +54,36 @@ def _stream_to_file(url: str, dest_tmp: Path, timeout: float = 300.0) -> str:
             h.update(chunk)
             f.write(chunk)
     return h.hexdigest()
+
+
+def _verify_signature(path: Path, log=None) -> bool:
+    """Verify the binary is validly signed by our Developer ID team.
+
+    Set ``EVENHUB_ASR_SIDECAR_TEAM_ID=""`` to disable (forks shipping ad-hoc binaries).
+    """
+    team = os.environ.get("EVENHUB_ASR_SIDECAR_TEAM_ID", DEVELOPER_ID_TEAM)
+    if not team:
+        return True
+    try:
+        v = subprocess.run(["codesign", "--verify", "--strict", str(path)],
+                           capture_output=True, text=True, timeout=30)
+        if v.returncode != 0:
+            if log:
+                log.error("Even G2 bridge: sidecar signature invalid (%s); not installing.",
+                          (v.stderr or "").strip())
+            return False
+        d = subprocess.run(["codesign", "-dvvv", str(path)],
+                           capture_output=True, text=True, timeout=30)
+        if f"TeamIdentifier={team}" not in ((d.stderr or "") + (d.stdout or "")):
+            if log:
+                log.error("Even G2 bridge: sidecar Team ID mismatch (expected %s); "
+                          "not installing.", team)
+            return False
+        return True
+    except Exception as e:  # noqa: BLE001
+        if log:
+            log.error("Even G2 bridge: sidecar signature check failed (%s); not installing.", e)
+        return False
 
 
 def _dequarantine(path: Path) -> None:
@@ -97,6 +132,9 @@ def ensure_sidecar_binary(version: str, dest: str, log=None) -> str | None:
                           "(%s != %s); not installing.", actual, expected)
             return None
         tmp.chmod(tmp.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        if not _verify_signature(tmp, log):
+            tmp.unlink(missing_ok=True)
+            return None
         tmp.replace(dest_path)
         _dequarantine(dest_path)
         if log:
