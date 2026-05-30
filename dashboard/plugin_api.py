@@ -77,7 +77,7 @@ def asr_models():
     for name, spec in REGISTRY.items():
         if spec.backend == "fluidaudio":
             installed = False
-            downloadable = sidecar["downloadable"]
+            downloadable = sidecar["downloadable"] or sidecar["installed"]
         else:
             try:
                 installed = asr_pkg._build_backend(name, cfg).is_installed()

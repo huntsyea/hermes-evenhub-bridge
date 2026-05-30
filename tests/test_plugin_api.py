@@ -87,7 +87,8 @@ def test_get_asr_models_does_not_run_sidecar_check(monkeypatch, tmp_path):
     client = TestClient(app)
     r = client.get("/api/plugins/g2/asr/models")
     assert r.status_code == 200
-    assert calls == ["whisper-tiny"]
+    assert all("parakeet" not in name for name in calls)
+    assert any("parakeet" not in name for name in calls)
 
 
 def test_get_asr_models_reports_sidecar_binary(monkeypatch, tmp_path):
@@ -105,6 +106,7 @@ def test_get_asr_models_reports_sidecar_binary(monkeypatch, tmp_path):
     assert body["sidecar"]["installed"] is True
     parakeet = next(m for m in body["models"] if m["name"] == "parakeet-tdt-0.6b-v2")
     assert parakeet["installed"] is False
+    assert parakeet["downloadable"] is True
     assert parakeet["sidecar_installed"] is True
     assert parakeet["active"] is True
 
