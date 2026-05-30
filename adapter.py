@@ -39,6 +39,7 @@ class EvenG2Adapter(BasePlatformAdapter):
         self._idle_poll_seconds = 0.1
         self._poller_tasks: dict[str, asyncio.Task] = {}
         self._transcriber = None
+        self._active_name = None
 
     @property
     def bound_port(self) -> int:
@@ -169,9 +170,15 @@ class EvenG2Adapter(BasePlatformAdapter):
                 self._poller_tasks.pop(chat_id, None)
 
     def _get_transcriber(self):
-        if self._transcriber is None:
-            from .asr import load_active
+        want = resolve_active_name(self._bridge_cfg)
+        if self._transcriber is None or want != self._active_name:
+            if self._transcriber is not None:
+                try:
+                    self._transcriber.close()
+                except Exception:
+                    pass
             self._transcriber = load_active(self._bridge_cfg)
+            self._active_name = want
         return self._transcriber
 
     def refresh_status(self) -> None:
