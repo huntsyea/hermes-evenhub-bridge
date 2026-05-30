@@ -31,9 +31,24 @@ def _release_base(version: str) -> str:
     return f"https://github.com/{repo}/releases/download/sidecar-v{version}"
 
 
-def _download(url: str, timeout: float = 300.0) -> bytes:
+def _download(url: str, timeout: float = 30.0) -> bytes:
+    # For small assets (the .sha256 sidecar file).
     with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
         return resp.read()
+
+
+def _stream_to_file(url: str, dest_tmp: Path, timeout: float = 300.0) -> str:
+    """Stream *url* into *dest_tmp* in chunks, returning the sha256 hexdigest.
+
+    Avoids buffering the whole ~6MB binary in memory and caps a stalled transfer
+    to the socket timeout per read.
+    """
+    h = hashlib.sha256()
+    with urllib.request.urlopen(url, timeout=timeout) as resp, open(dest_tmp, "wb") as f:  # noqa: S310
+        for chunk in iter(lambda: resp.read(65536), b""):
+            h.update(chunk)
+            f.write(chunk)
+    return h.hexdigest()
 
 
 def _dequarantine(path: Path) -> None:
@@ -63,25 +78,24 @@ def ensure_sidecar_binary(version: str, dest: str, log=None) -> str | None:
         return None
 
     base = _release_base(version)
+    tmp = dest_path.with_suffix(".tmp")
     try:
-        blob = _download(f"{base}/{ASSET_NAME}")
+        # Fetch the (small) checksum first; refuse to install if it's unavailable.
         try:
             expected = _download(f"{base}/{ASSET_NAME}.sha256").decode().split()[0].strip()
         except Exception as e:  # noqa: BLE001
-            # Never install/execute an unverified binary; fall back to whisper.
             if log:
                 log.error("Even G2 bridge: could not fetch sidecar checksum (%s); "
                           "refusing to install unverified binary.", e)
             return None
-        actual = hashlib.sha256(blob).hexdigest()
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        actual = _stream_to_file(f"{base}/{ASSET_NAME}", tmp)
         if actual != expected:
+            tmp.unlink(missing_ok=True)
             if log:
                 log.error("Even G2 bridge: sidecar checksum mismatch "
                           "(%s != %s); not installing.", actual, expected)
             return None
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dest_path.with_suffix(".tmp")
-        tmp.write_bytes(blob)
         tmp.chmod(tmp.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         tmp.replace(dest_path)
         _dequarantine(dest_path)
@@ -89,6 +103,7 @@ def ensure_sidecar_binary(version: str, dest: str, log=None) -> str | None:
             log.info("Even G2 bridge: downloaded sidecar to %s", dest_path)
         return str(dest_path)
     except Exception as e:  # noqa: BLE001
+        tmp.unlink(missing_ok=True)
         if log:
             log.warning("Even G2 bridge: sidecar download failed (%s); "
                         "using whisper fallback.", e)
