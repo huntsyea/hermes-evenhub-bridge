@@ -16,3 +16,10 @@ def test_entry_bundle_exists_and_registers():
     js = (_ROOT / "dashboard/dist/index.js").read_text()
     assert "__HERMES_PLUGINS__" in js
     assert "register(" in js
+
+
+def test_entry_bundle_fetches_gateway_status_and_reports_errors():
+    js = (_ROOT / "dashboard/dist/index.js").read_text()
+    assert "SDK.api.getStatus" in js or 'fetchJSON("/api/status")' in js
+    assert ".catch(function () {})" not in js
+    assert "ErrorLine" in js
