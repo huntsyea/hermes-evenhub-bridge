@@ -5,6 +5,7 @@ import json
 import logging
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 from . import ASRUnavailable
@@ -32,6 +33,8 @@ class FluidAudioBackend:
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
         self._restarts = 0
+        self._restart_window = 60.0
+        self._first_restart_at: float | None = None
 
     # --- lifecycle -------------------------------------------------------
     def is_installed(self) -> bool:
@@ -108,6 +111,11 @@ class FluidAudioBackend:
         with self._lock:
             try:
                 if self._proc is None or self._proc.poll() is not None:
+                    now = time.monotonic()
+                    if (self._first_restart_at is None
+                            or (now - self._first_restart_at) > self._restart_window):
+                        self._first_restart_at = now
+                        self._restarts = 0
                     if self._restarts >= _MAX_RESTARTS:
                         raise ASRUnavailable("sidecar restart limit reached")
                     self._restarts += 1
@@ -126,4 +134,5 @@ class FluidAudioBackend:
                 raise ASRUnavailable(resp["error"])
             # A clean response means the sidecar is healthy again.
             self._restarts = 0
+            self._first_restart_at = None
             return (resp.get("text") or "").strip()
