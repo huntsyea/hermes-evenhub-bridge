@@ -1,0 +1,9 @@
+sequenceDiagram
+  participant G as Glasses
+  participant B as Bridge
+  participant R as ASR (parakeet → whisper)
+  G->>B: audio.start · PCM · audio.stop
+  B->>R: transcribe(pcm)
+  R-->>B: text
+  B-->>G: transcript
+  Note over G: user confirms → sent as a text turn
