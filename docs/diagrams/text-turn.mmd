@@ -1,0 +1,13 @@
+sequenceDiagram
+  participant G as Glasses
+  participant B as Bridge
+  participant H as Hermes agent
+  G->>B: hello {token}
+  B-->>G: hello.ok
+  G->>B: text
+  B->>H: handle_message
+  H-->>B: streamed reply (full accumulated)
+  B-->>G: assistant.delta (diffed, cursor stripped)
+  H-->>B: pre / post tool_call
+  B-->>G: tool.start / tool.end
+  B-->>G: turn.done (when idle)
