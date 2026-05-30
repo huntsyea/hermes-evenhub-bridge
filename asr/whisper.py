@@ -56,6 +56,3 @@ class WhisperBackend:
         segments, _info = self._model.transcribe(audio)  # type: ignore[union-attr]
         return "".join(seg.text for seg in segments).strip()
 
-
-# Temporary back-compat alias; removed in a later task.
-Transcriber = WhisperBackend

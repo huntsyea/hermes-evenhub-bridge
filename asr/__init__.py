@@ -110,6 +110,3 @@ __all__ = [
     "WhisperBackend", "pcm_to_float32", "load_active", "resolve_active_name",
     "ModelSpec", "REGISTRY", "DEFAULT_ACTIVE", "get_spec",
 ]
-
-# Temporary back-compat alias; removed in a later task.
-Transcriber = WhisperBackend  # noqa: F401
