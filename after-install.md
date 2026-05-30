@@ -66,4 +66,4 @@ hermes even-g2 asr set parakeet-tdt-0.6b-v2
 > The sidecar is Developer ID signed + notarized, so it runs without Gatekeeper prompts.
 > Non-macOS hosts stay on whisper automatically.
 
-Source & full docs: https://github.com/huntsyea/even-g2-hermes
+Source & full docs: https://github.com/huntsyea/hermes-evenhub-bridge

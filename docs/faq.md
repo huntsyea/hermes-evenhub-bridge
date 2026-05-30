@@ -21,7 +21,7 @@ No. It only *detects* an existing Tailscale and advertises its address. Installi
 
 **Is the glasses app in this repo?**
 No — this repo is the Hermes-side plugin. The glasses app is in the
-[`even-g2-hermes`](https://github.com/huntsyea/even-g2-hermes) monorepo.
+[`hermes-even-hub-app`](https://github.com/huntsyea/hermes-even-hub-app) repo.
 
 **How do I update after a new release?**
 ```bash

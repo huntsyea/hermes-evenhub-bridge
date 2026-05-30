@@ -10,8 +10,8 @@ the Hermes gateway, and the agent's streamed reply, tool-call status, session sw
 transcripts flow back to the glasses' 576×288 display.
 
 > **This repo is the Hermes-side plugin only.** The glasses-side app (the TypeScript Even Hub
-> WebView app that runs on the phone) lives in the
-> [`even-g2-hermes`](https://github.com/huntsyea/even-g2-hermes) monorepo under `glasses-app/`.
+> WebView app that runs on the phone) is its sister repo,
+> [`hermes-even-hub-app`](https://github.com/huntsyea/hermes-even-hub-app).
 > The two halves talk only through the [JSON frame protocol](docs/protocol.md).
 
 ![Architecture](docs/diagrams/architecture.svg)
