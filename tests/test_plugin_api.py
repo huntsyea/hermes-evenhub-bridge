@@ -1,5 +1,7 @@
 import importlib.util
 from pathlib import Path
+
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -26,6 +28,7 @@ def test_status_endpoint_reads_status_file(monkeypatch, tmp_path):
     assert r.json()["connected"] == 2
 
 
+@pytest.mark.gateway  # config endpoints import hermes_cli (part of the Hermes install)
 def test_config_roundtrip(monkeypatch, tmp_path):
     mod = _load_router(monkeypatch, tmp_path)
     app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
