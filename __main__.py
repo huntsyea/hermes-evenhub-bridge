@@ -49,8 +49,8 @@ def _cmd_asr(args) -> int:
 def _cmd_url() -> int:
     from . import net
     cfg = BridgeConfig.from_env()
-    ts = net.detect_tailscale()
-    print(net.preferred_connect_url(cfg, ts))
+    _bind, url, ts = net.resolve(cfg)
+    print(url)
     if ts and (ts.get("magic_dns") or ts.get("ip")):
         print(f"  tailscale: {ts.get('magic_dns') or ts.get('ip')} "
               f"(online={ts.get('online')})")

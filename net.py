@@ -39,12 +39,16 @@ def detect_tailscale() -> Optional[dict]:
     except Exception:
         return _detect_via_ip(binary)
     self_ = data.get("Self") or {}
+    if not self_.get("Online"):
+        # Logged out / `tailscale down`: don't advertise a stale tailnet host;
+        # let the caller fall back to the LAN address.
+        return None
     ips = self_.get("TailscaleIPs") or []
     ip = next((a for a in ips if a.startswith("100.")), ips[0] if ips else "")
     dns = (self_.get("DNSName") or "").rstrip(".")
     if not ip and not dns:
         return None
-    return {"ip": ip, "magic_dns": dns, "online": bool(self_.get("Online"))}
+    return {"ip": ip, "magic_dns": dns, "online": True}
 
 
 def _detect_via_ip(binary: str) -> Optional[dict]:
@@ -72,16 +76,36 @@ def lan_ip() -> str:
         s.close()
 
 
+def _is_pinned(cfg) -> bool:
+    """True when the operator bound a specific interface (not a wildcard)."""
+    return bool(cfg.ws_host) and cfg.ws_host not in ("0.0.0.0", "::")
+
+
+def _fmt_host(host: str) -> str:
+    # Bracket IPv6 literals so the :port stays unambiguous in a ws:// URL.
+    if ":" in host and not host.startswith("["):
+        return f"[{host}]"
+    return host
+
+
 def preferred_connect_url(cfg, ts: Optional[dict] = None) -> str:
-    """The ``ws://`` URL the glasses should use: MagicDNS > Tailscale IP > LAN IP."""
-    if ts is None:
-        ts = detect_tailscale()
+    """The ``ws://`` URL the glasses should use.
+
+    Host precedence is chosen to match what the bridge actually binds:
+    a pinned ``EVENHUB_BRIDGE_HOST`` wins (except in ``tailnet`` mode), otherwise
+    Tailscale MagicDNS > Tailscale IP (in ``both``/``tailnet``), else the LAN IP.
+    ``ts`` is the already-detected info (pass ``None`` for "no Tailscale").
+    """
     host = ""
-    if ts and cfg.net_mode in ("both", "tailnet"):
+    if cfg.net_mode == "tailnet" and ts:
+        host = ts.get("magic_dns") or ts.get("ip") or ""
+    elif _is_pinned(cfg):
+        host = cfg.ws_host
+    elif ts and cfg.net_mode == "both":
         host = ts.get("magic_dns") or ts.get("ip") or ""
     if not host:
         host = lan_ip()
-    return f"ws://{host}:{cfg.ws_port}"
+    return f"ws://{_fmt_host(host)}:{cfg.ws_port}"
 
 
 def bind_host(cfg, ts: Optional[dict] = None) -> str:
@@ -89,11 +113,18 @@ def bind_host(cfg, ts: Optional[dict] = None) -> str:
 
     ``tailnet`` binds the Tailscale interface only (falling back to the configured
     host if no tailnet is present); ``both``/``lan`` bind the configured host
-    (``0.0.0.0`` by default).
+    (``0.0.0.0`` by default). ``ts`` is authoritative — this never probes.
     """
-    if cfg.net_mode == "tailnet":
-        if ts is None:
-            ts = detect_tailscale()
-        if ts and ts.get("ip"):
-            return ts["ip"]
+    if cfg.net_mode == "tailnet" and ts and ts.get("ip"):
+        return ts["ip"]
     return cfg.ws_host
+
+
+def resolve(cfg) -> tuple[str, str, Optional[dict]]:
+    """Detect Tailscale once and return ``(bind_host, connect_url, ts)``.
+
+    Skips Tailscale detection entirely in ``lan`` mode. Call this off the event
+    loop (it shells out to the ``tailscale`` CLI).
+    """
+    ts = None if cfg.net_mode == "lan" else detect_tailscale()
+    return bind_host(cfg, ts), preferred_connect_url(cfg, ts), ts

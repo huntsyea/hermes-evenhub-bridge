@@ -6,7 +6,16 @@ _NET_MODES = ("both", "tailnet", "lan")
 
 
 def hermes_home() -> Path:
-    return Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+    """Hermes home dir — the single source of truth shared with status/bootstrap.
+
+    Prefer the gateway's canonical, profile-aware resolver; fall back to the env
+    var for standalone CLI / test use where the gateway isn't importable.
+    """
+    try:
+        from hermes_constants import get_hermes_home
+        return Path(get_hermes_home())
+    except Exception:
+        return Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
 
 
 def default_sidecar_bin() -> str:

@@ -11,8 +11,8 @@ from typing import Any, Dict
 
 
 def default_status_path() -> Path:
-    home = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
-    return home / "even_g2_status.json"
+    from .config import hermes_home
+    return hermes_home() / "even_g2_status.json"
 
 
 _DEFAULTS: Dict[str, Any] = {

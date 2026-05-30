@@ -26,7 +26,9 @@ def is_supported_platform() -> bool:
 
 
 def _release_base(version: str) -> str:
-    return f"https://github.com/{RELEASE_REPO}/releases/download/sidecar-v{version}"
+    # Overridable so forks / org transfers / mirrors can redirect the asset host.
+    repo = os.environ.get("EVENHUB_ASR_SIDECAR_REPO", RELEASE_REPO)
+    return f"https://github.com/{repo}/releases/download/sidecar-v{version}"
 
 
 def _download(url: str, timeout: float = 300.0) -> bytes:
@@ -63,18 +65,20 @@ def ensure_sidecar_binary(version: str, dest: str, log=None) -> str | None:
     base = _release_base(version)
     try:
         blob = _download(f"{base}/{ASSET_NAME}")
-        expected = ""
         try:
             expected = _download(f"{base}/{ASSET_NAME}.sha256").decode().split()[0].strip()
-        except Exception:
-            expected = ""  # checksum optional; proceed if the sidecar lacks one
-        if expected:
-            actual = hashlib.sha256(blob).hexdigest()
-            if actual != expected:
-                if log:
-                    log.error("Even G2 bridge: sidecar checksum mismatch "
-                              "(%s != %s); not installing.", actual, expected)
-                return None
+        except Exception as e:  # noqa: BLE001
+            # Never install/execute an unverified binary; fall back to whisper.
+            if log:
+                log.error("Even G2 bridge: could not fetch sidecar checksum (%s); "
+                          "refusing to install unverified binary.", e)
+            return None
+        actual = hashlib.sha256(blob).hexdigest()
+        if actual != expected:
+            if log:
+                log.error("Even G2 bridge: sidecar checksum mismatch "
+                          "(%s != %s); not installing.", actual, expected)
+            return None
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest_path.with_suffix(".tmp")
         tmp.write_bytes(blob)

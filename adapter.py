@@ -48,12 +48,13 @@ class EvenG2Adapter(BasePlatformAdapter):
 
     async def connect(self) -> bool:
         from . import net
-        ts = net.detect_tailscale()
-        bind = net.bind_host(self._bridge_cfg, ts)
-        connect_url = net.preferred_connect_url(self._bridge_cfg, ts)
+        loop = asyncio.get_running_loop()
+        # Tailscale detection shells out to the CLI — keep it off the event loop.
+        bind, connect_url, ts = await loop.run_in_executor(
+            None, net.resolve, self._bridge_cfg)
         await self._server.start(bind)
         try:
-            self._loop = asyncio.get_running_loop()
+            self._loop = loop
             self._mark_connected()
             self._status.update(
                 connected=0, mic="off", active_session="",
