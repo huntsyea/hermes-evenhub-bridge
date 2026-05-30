@@ -1,0 +1,10 @@
+{
+  "name": "hermes-evenhub-bridge",
+  "label": "Even Realities G2",
+  "description": "Live status and configuration for the G2 glasses adapter.",
+  "icon": "Glasses",
+  "version": "0.2.0",
+  "tab": { "path": "/even-g2", "position": "end" },
+  "entry": "dist/index.js",
+  "api": "plugin_api.py"
+}

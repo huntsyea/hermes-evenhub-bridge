@@ -1,0 +1,14 @@
+name: hermes-evenhub-bridge
+label: Even Realities G2
+version: 0.2.0
+description: Even Realities G2 smart glasses as a Hermes platform adapter.
+kind: platform
+requires_env:
+  - EVENHUB_BRIDGE_TOKEN
+optional_env:
+  - name: EVENHUB_BRIDGE_HOST
+    description: WebSocket bind host
+  - name: EVENHUB_BRIDGE_PORT
+    description: WebSocket bind port
+  - name: EVENHUB_ASR_MODEL
+    description: faster-whisper model size (tiny/base/small/medium)
