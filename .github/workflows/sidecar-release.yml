@@ -1,0 +1,129 @@
+name: Build & publish ASR sidecar
+
+# Builds the Swift FluidAudio sidecar on Apple Silicon and publishes the binary as a
+# Release asset on THIS repo, where the plugin's auto-downloader fetches it.
+#
+# Trigger by pushing a tag like `sidecar-v0.3.0` (version must match __version__ /
+# plugin.yaml), or run manually with the version input.
+#
+# When the Developer ID cert (DEVID_CERT_*) and App Store Connect API-key (AC_API_*)
+# secrets are present, the binary is Developer ID signed + notarized; otherwise it
+# ships ad-hoc (still runs).
+
+on:
+  push:
+    tags:
+      - "sidecar-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Plugin version, e.g. 0.3.0 (publishes release sidecar-v<version>)"
+        required: true
+
+permissions:
+  contents: write  # create the release on this repo
+
+jobs:
+  build:
+    runs-on: macos-15  # Apple Silicon; Xcode 16 / Swift 6 (FluidAudio needs tools 6.0)
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select latest Xcode (Swift 6)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Toolchain info
+        run: swift --version
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#sidecar-v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build sidecar (release)
+        working-directory: sidecar
+        run: swift build -c release
+
+      - name: Stage release asset
+        working-directory: sidecar
+        run: |
+          BIN=$(swift build -c release --show-bin-path)/g2-asr-sidecar
+          test -x "$BIN"
+          cp "$BIN" g2-asr-sidecar-macos-arm64
+
+      - name: Detect signing config
+        id: cfg
+        env:
+          P12: ${{ secrets.DEVID_CERT_P12_BASE64 }}
+          APIKEY: ${{ secrets.AC_API_KEY_P8_BASE64 }}
+          APIID: ${{ secrets.AC_API_KEY_ID }}
+          APIISS: ${{ secrets.AC_API_ISSUER_ID }}
+        run: |
+          have_cert=false; ready=false
+          [ -n "$P12" ] && have_cert=true
+          if [ -n "$P12" ] && [ -n "$APIKEY" ] && [ -n "$APIID" ] && [ -n "$APIISS" ]; then
+            ready=true
+          fi
+          echo "have_cert=$have_cert" >> "$GITHUB_OUTPUT"
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "signing cert present: $have_cert · full sign+notarize ready: $ready"
+
+      - name: Import & verify Developer ID certificate
+        if: steps.cfg.outputs.have_cert == 'true'
+        continue-on-error: true  # never fail the ad-hoc release over a bad cert secret
+        env:
+          P12_B64: ${{ secrets.DEVID_CERT_P12_BASE64 }}
+          P12_PW: ${{ secrets.DEVID_CERT_PASSWORD }}
+          KEYCHAIN_PW: actions-temp-keychain
+        run: |
+          echo "$P12_B64" | base64 --decode > /tmp/devid.p12
+          security create-keychain -p "$KEYCHAIN_PW" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PW" build.keychain
+          security import /tmp/devid.p12 -k build.keychain -P "$P12_PW" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PW" build.keychain
+          rm -f /tmp/devid.p12
+          echo "Code-signing identities (must include 'Developer ID Application'):"
+          security find-identity -v -p codesigning build.keychain
+
+      - name: Sign & notarize
+        if: steps.cfg.outputs.ready == 'true'
+        working-directory: sidecar
+        env:
+          API_KEY_B64: ${{ secrets.AC_API_KEY_P8_BASE64 }}
+          API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.AC_API_ISSUER_ID }}
+        run: |
+          codesign --force --options runtime --timestamp \
+            --sign "Developer ID Application" g2-asr-sidecar-macos-arm64
+          codesign --verify --strict --verbose=2 g2-asr-sidecar-macos-arm64
+          echo "$API_KEY_B64" | base64 --decode > /tmp/AuthKey.p8
+          ditto -c -k --keepParent g2-asr-sidecar-macos-arm64 /tmp/sidecar.zip
+          xcrun notarytool submit /tmp/sidecar.zip \
+            --key /tmp/AuthKey.p8 --key-id "$API_KEY_ID" --issuer "$API_ISSUER" --wait
+          rm -f /tmp/AuthKey.p8 /tmp/sidecar.zip
+          echo "Developer ID signed + notarized."
+
+      - name: Checksum
+        working-directory: sidecar
+        run: shasum -a 256 g2-asr-sidecar-macos-arm64 > g2-asr-sidecar-macos-arm64.sha256
+
+      - name: Publish release
+        working-directory: sidecar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="sidecar-v${{ steps.ver.outputs.version }}"
+          gh release create "$TAG" \
+            --title "ASR sidecar $TAG" \
+            --notes "Prebuilt parakeet ASR sidecar (macOS arm64) for hermes-evenhub-bridge ${{ steps.ver.outputs.version }}." \
+            g2-asr-sidecar-macos-arm64 g2-asr-sidecar-macos-arm64.sha256 \
+          || gh release upload "$TAG" --clobber \
+            g2-asr-sidecar-macos-arm64 g2-asr-sidecar-macos-arm64.sha256

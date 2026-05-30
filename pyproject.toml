@@ -1,0 +1,50 @@
+# Flat "directory plugin" layout (the official Hermes model): the package files
+# live at the repo ROOT so `hermes plugins install owner/repo` finds plugin.yaml +
+# __init__.py there. This pyproject is for DEV TOOLING + metadata only — it does not
+# build/pip-install the package (`tool.uv.package = false`); tests import the package
+# via tests/conftest.py. Runtime deps are also installed by _bootstrap.py on first load
+# and listed in requirements.txt.
+[project]
+name = "hermes-evenhub-bridge"
+version = "0.3.0"
+description = "Even Realities G2 smart glasses as a Hermes platform adapter."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "huntsyea", email = "hunter.c.yeagley@outlook.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "faster-whisper>=1.2.1",
+    "numpy>=1.26.0",
+    "websockets>=16.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/huntsyea/hermes-evenhub-bridge"
+Issues = "https://github.com/huntsyea/hermes-evenhub-bridge/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.4.0",
+    "fastapi>=0.115",
+    "httpx>=0.28.1",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gateway: requires the Hermes gateway (CI installs hermes-agent; dev uses ~/.hermes/hermes-agent)",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# Meaningful correctness rules (pyflakes + syntax), not stylistic noise. The flat
+# directory-plugin layout and test guards legitimately import below module top.
+select = ["E9", "F"]

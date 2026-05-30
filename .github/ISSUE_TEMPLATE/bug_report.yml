@@ -1,0 +1,24 @@
+name: Bug report
+description: Something isn't working
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected vs. what occurred. Include logs from `hermes logs` if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "macOS 15 / Apple Silicon, Hermes version, plugin version, EVENHUB_BRIDGE_NET=..."
+    validations:
+      required: true
