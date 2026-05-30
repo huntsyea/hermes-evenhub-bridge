@@ -45,6 +45,5 @@ markers = [
 line-length = 100
 
 [tool.ruff.lint]
-# Meaningful correctness rules (pyflakes + syntax), not stylistic noise. The flat
-# directory-plugin layout and test guards legitimately import below module top.
-select = ["E9", "F"]
+# Meaningful correctness rules without broad style churn.
+select = ["E9", "F", "B", "C4"]

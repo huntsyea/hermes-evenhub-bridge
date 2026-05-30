@@ -6,9 +6,8 @@ name: Build & publish ASR sidecar
 # Trigger by pushing a tag like `sidecar-v0.3.0` (version must match __version__ /
 # plugin.yaml), or run manually with the version input.
 #
-# When the Developer ID cert (DEVID_CERT_*) and App Store Connect API-key (AC_API_*)
-# secrets are present, the binary is Developer ID signed + notarized; otherwise it
-# ships ad-hoc (still runs).
+# Official release assets must be Developer ID signed + notarized because the
+# plugin's auto-downloader verifies the Developer ID Team ID before install.
 
 on:
   push:
@@ -37,6 +36,25 @@ jobs:
       - name: Toolchain info
         run: swift --version
 
+      - name: Validate signing config
+        env:
+          P12: ${{ secrets.DEVID_CERT_P12_BASE64 }}
+          P12_PW: ${{ secrets.DEVID_CERT_PASSWORD }}
+          APIKEY: ${{ secrets.AC_API_KEY_P8_BASE64 }}
+          APIID: ${{ secrets.AC_API_KEY_ID }}
+          APIISS: ${{ secrets.AC_API_ISSUER_ID }}
+        run: |
+          missing=""
+          [ -n "$P12" ] || missing="$missing DEVID_CERT_P12_BASE64"
+          [ -n "$P12_PW" ] || missing="$missing DEVID_CERT_PASSWORD"
+          [ -n "$APIKEY" ] || missing="$missing AC_API_KEY_P8_BASE64"
+          [ -n "$APIID" ] || missing="$missing AC_API_KEY_ID"
+          [ -n "$APIISS" ] || missing="$missing AC_API_ISSUER_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Refusing to publish an unsigned official sidecar. Missing secrets:$missing"
+            exit 1
+          fi
+
       - name: Resolve version
         id: ver
         run: |
@@ -57,26 +75,7 @@ jobs:
           test -x "$BIN"
           cp "$BIN" g2-asr-sidecar-macos-arm64
 
-      - name: Detect signing config
-        id: cfg
-        env:
-          P12: ${{ secrets.DEVID_CERT_P12_BASE64 }}
-          APIKEY: ${{ secrets.AC_API_KEY_P8_BASE64 }}
-          APIID: ${{ secrets.AC_API_KEY_ID }}
-          APIISS: ${{ secrets.AC_API_ISSUER_ID }}
-        run: |
-          have_cert=false; ready=false
-          [ -n "$P12" ] && have_cert=true
-          if [ -n "$P12" ] && [ -n "$APIKEY" ] && [ -n "$APIID" ] && [ -n "$APIISS" ]; then
-            ready=true
-          fi
-          echo "have_cert=$have_cert" >> "$GITHUB_OUTPUT"
-          echo "ready=$ready" >> "$GITHUB_OUTPUT"
-          echo "signing cert present: $have_cert · full sign+notarize ready: $ready"
-
       - name: Import & verify Developer ID certificate
-        if: steps.cfg.outputs.have_cert == 'true'
-        continue-on-error: true  # never fail the ad-hoc release over a bad cert secret
         env:
           P12_B64: ${{ secrets.DEVID_CERT_P12_BASE64 }}
           P12_PW: ${{ secrets.DEVID_CERT_PASSWORD }}
@@ -92,9 +91,9 @@ jobs:
           rm -f /tmp/devid.p12
           echo "Code-signing identities (must include 'Developer ID Application'):"
           security find-identity -v -p codesigning build.keychain
+          security find-identity -v -p codesigning build.keychain | grep "Developer ID Application"
 
       - name: Sign & notarize
-        if: steps.cfg.outputs.ready == 'true'
         working-directory: sidecar
         env:
           API_KEY_B64: ${{ secrets.AC_API_KEY_P8_BASE64 }}

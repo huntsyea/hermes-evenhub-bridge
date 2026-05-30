@@ -30,6 +30,7 @@ def test_status_endpoint_reads_status_file(monkeypatch, tmp_path):
 
 @pytest.mark.gateway  # config endpoints import hermes_cli (part of the Hermes install)
 def test_config_roundtrip(monkeypatch, tmp_path):
+    pytest.importorskip("hermes_cli.config")
     mod = _load_router(monkeypatch, tmp_path)
     app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
     client = TestClient(app)
