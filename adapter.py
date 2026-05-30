@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -129,7 +130,21 @@ class EvenG2Adapter(BasePlatformAdapter):
     async def on_stop(self, chat_id: str) -> None:
         await self._dispatch_command(chat_id, "/stop")
 
+    def _ensure_home_channel(self, chat_id: str) -> None:
+        """Set EVEN_G2_HOME_CHANNEL once so Hermes stops prompting to set a home
+        channel on every fresh session. Mirrors what the gateway's /sethome does."""
+        env_key = "EVEN_G2_HOME_CHANNEL"
+        if os.environ.get(env_key):
+            return
+        os.environ[env_key] = str(chat_id)
+        try:
+            from hermes_cli.config import save_env_value
+            save_env_value(env_key, str(chat_id))
+        except Exception as e:  # persistence is best-effort; process env still suppresses it
+            log.warning("could not persist %s: %s", env_key, e)
+
     async def on_text(self, chat_id: str, text: str) -> None:
+        self._ensure_home_channel(chat_id)
         source = self._source_for(chat_id)
         entry = self._session_store.get_or_create_session(source)
         self._session_by_chat[chat_id] = entry.session_id
