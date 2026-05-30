@@ -24,8 +24,8 @@ transcripts flow back to the glasses' 576×288 display.
   `assistant.delta` frames, and surfaces tool activity (`tool.start`/`tool.end`).
 - **Transcribes voice on-device** — parakeet on the Apple Neural Engine, with a universal
   `whisper-tiny` fallback.
-- **Self-installs** — `hermes plugins install` + one gateway restart pulls the Python deps and
-  (on macOS) the signed ASR sidecar automatically.
+- **Self-installs** — `hermes plugins install` + one gateway restart pulls the Python deps automatically;
+  on macOS, the signed ASR sidecar is fetched when you download a parakeet model.
 
 ## Install
 
