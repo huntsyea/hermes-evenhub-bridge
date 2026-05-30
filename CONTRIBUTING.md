@@ -1,7 +1,8 @@
 # Contributing
 
 Thanks for your interest! This is the **Hermes-side plugin** for Even Realities G2.
-The glasses-side app lives in a separate repo.
+The glasses-side app is its sister repo,
+[hermes-even-hub-app](https://github.com/huntsyea/hermes-even-hub-app).
 
 ## Layout
 
