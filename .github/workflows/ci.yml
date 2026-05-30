@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Required check: lint + the gateway-free test suite. Deterministic — no gateway.
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - run: uv sync
+      - name: Lint
+        run: uv run ruff check .
+      - name: Tests (gateway-free)
+        run: uv run pytest -m "not gateway" -q
+
+  # Best-effort: run the gateway-marked tests against the real Hermes gateway from
+  # PyPI. Not a required check (gateway version drift can break it); it's a canary.
+  gateway-integration:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.11"
+      - run: uv sync
+      - name: Tests (gateway, with hermes-agent)
+        run: uv run --with hermes-agent pytest -m gateway -q
