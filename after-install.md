@@ -63,7 +63,7 @@ hermes-evenhub-bridge asr download parakeet-tdt-0.6b-v2
 hermes-evenhub-bridge asr set parakeet-tdt-0.6b-v2
 ```
 
-> The sidecar is unsigned; if macOS Gatekeeper blocks it, approve it once in
-> System Settings → Privacy & Security. Non-macOS hosts stay on whisper automatically.
+> The sidecar is Developer ID signed + notarized, so it runs without Gatekeeper prompts.
+> Non-macOS hosts stay on whisper automatically.
 
 Source & full docs: https://github.com/huntsyea/even-g2-hermes

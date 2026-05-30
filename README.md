@@ -286,9 +286,10 @@ produces a transcript:
 - If the active model's backend can't run (sidecar missing, crash, timeout), the
   adapter falls back to `whisper-tiny` for that request — it never lets ASR kill a turn.
 
-> The sidecar binary is currently **unsigned / un-notarized**. macOS Gatekeeper may
-> require a one-time approval in *System Settings → Privacy & Security*. (Tracked for a
-> proper Developer ID signing fix.)
+> The sidecar binary is **Developer ID signed + notarized** (Apple notary: Accepted) with
+> the hardened runtime, so it runs without Gatekeeper prompts. (It's a bare CLI tool, not an
+> app bundle, so there's no staple — the notarization ticket is served online; the plugin's
+> download applies no quarantine.)
 
 ---
 
