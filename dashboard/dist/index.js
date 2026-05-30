@@ -13,6 +13,104 @@
       h(C.CardContent, null, children));
   }
 
+  function TranscriptionPanel() {
+    var m = useState({ models: [], active: "" });
+    var asrData = m[0], setAsrData = m[1];
+    var d = useState({});
+    var downloading = d[0], setDownloading = d[1];
+
+    function loadModels() {
+      fetchJSON(BASE + "/asr/models").then(setAsrData).catch(function () {});
+    }
+
+    useEffect(function () {
+      loadModels();
+    }, []);
+
+    function setActive(name) {
+      fetchJSON(BASE + "/asr/set/" + encodeURIComponent(name), {
+        method: "POST",
+      }).then(loadModels).catch(function () {});
+    }
+
+    function download(name) {
+      setDownloading(function (prev) {
+        var next = Object.assign({}, prev);
+        next[name] = true;
+        return next;
+      });
+      fetchJSON(BASE + "/asr/download/" + encodeURIComponent(name), {
+        method: "POST",
+      }).then(function () {
+        setDownloading(function (prev) {
+          var next = Object.assign({}, prev);
+          delete next[name];
+          return next;
+        });
+        loadModels();
+      }).catch(function () {
+        setDownloading(function (prev) {
+          var next = Object.assign({}, prev);
+          delete next[name];
+          return next;
+        });
+        loadModels();
+      });
+    }
+
+    var models = asrData.models || [];
+    var activeModel = asrData.active || "";
+    var fluidaudioBuilt = models.some(function (model) {
+      return model.backend === "fluidaudio" && model.installed;
+    });
+
+    var sidecarIndicator = h("div", { style: { fontSize: "12px", color: fluidaudioBuilt ? "#22c55e" : "#94a3b8", marginBottom: "8px" } },
+      "sidecar: " + (fluidaudioBuilt ? "built ✓" : "not built"));
+
+    var modelRows = models.map(function (model) {
+      var isActive = model.name === activeModel;
+      var isDownloading = !!downloading[model.name];
+      return h("div", {
+        key: model.name,
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "6px 0",
+          borderBottom: "1px solid #1e293b",
+        },
+      },
+        h("span", { style: { fontWeight: isActive ? "600" : "400", flex: 1 } },
+          (isActive ? "● " : "○ ") + model.name,
+          model.lang ? h("span", { style: { color: "#94a3b8", fontSize: "12px", marginLeft: "6px" } }, "[" + model.lang + "]") : null),
+        model.installed
+          ? h(C.Badge, { style: { marginRight: "4px" } }, "installed")
+          : null,
+        !model.installed && !isDownloading
+          ? h(C.Button, {
+              onClick: function () { download(model.name); },
+              style: { padding: "2px 10px", fontSize: "12px" },
+            }, "Download")
+          : null,
+        !model.installed && isDownloading
+          ? h("span", { style: { fontSize: "12px", color: "#94a3b8" } }, "downloading…")
+          : null,
+        model.installed && !isActive
+          ? h(C.Button, {
+              onClick: function () { setActive(model.name); },
+              style: { padding: "2px 10px", fontSize: "12px" },
+            }, "Set active")
+          : null);
+    });
+
+    return Section("Transcription model",
+      h("div", null,
+        sidecarIndicator,
+        models.length === 0
+          ? h("span", { style: { color: "#94a3b8", fontSize: "13px" } }, "Loading models…")
+          : h("div", null, modelRows)));
+  }
+
   function EvenG2Page() {
     var s = useState({ connected: 0, mic: "off", active_session: "" });
     var status = s[0], setStatus = s[1];
@@ -60,6 +158,7 @@
             h(C.SelectOption, { value: "base" }, "base"),
             h(C.SelectOption, { value: "small" }, "small"),
             h(C.SelectOption, { value: "medium" }, "medium")))),
+      h(TranscriptionPanel, null),
       h(C.Button, { onClick: save }, "Save"));
   }
 
