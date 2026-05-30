@@ -76,7 +76,7 @@ def asr_models():
     models = []
     for name, spec in REGISTRY.items():
         if spec.backend == "fluidaudio":
-            installed = sidecar["installed"]
+            installed = False
             downloadable = sidecar["downloadable"]
         else:
             try:
@@ -90,8 +90,8 @@ def asr_models():
             "lang": spec.lang,
             "installed": installed,
             "active": name == active,
-            "available": installed or spec.backend == "whisper",
             "downloadable": downloadable,
+            "sidecar_installed": sidecar["installed"] if spec.backend == "fluidaudio" else None,
         })
     return {"models": models, "active": active, "sidecar": sidecar}
 

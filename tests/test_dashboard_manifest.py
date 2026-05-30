@@ -23,3 +23,4 @@ def test_entry_bundle_fetches_gateway_status_and_reports_errors():
     assert "SDK.api.getStatus" in js or 'fetchJSON("/api/status")' in js
     assert ".catch(function () {})" not in js
     assert "ErrorLine" in js
+    assert "!model.installed && isDownloading" not in js

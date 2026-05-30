@@ -98,6 +98,7 @@
       var isActive = model.name === activeModel;
       var isDownloading = !!downloading[model.name];
       var canDownload = (!model.installed || model.backend === "fluidaudio") && model.downloadable !== false && !isDownloading;
+      var canSetActive = (model.installed || model.backend === "fluidaudio") && !isActive;
       return h("div", {
         key: model.name,
         style: {
@@ -123,10 +124,10 @@
               style: { padding: "2px 10px", fontSize: "12px" },
             }, "Download")
           : null,
-        !model.installed && isDownloading
+        isDownloading
           ? h("span", { style: { fontSize: "12px", color: "#94a3b8" } }, "downloading…")
           : null,
-        model.installed && !isActive
+        canSetActive
           ? h(C.Button, {
               onClick: function () { setActive(model.name); },
               style: { padding: "2px 10px", fontSize: "12px" },
