@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from hermes_evenhub_bridge.status import StatusFile
-from hermes_evenhub_bridge.config import BridgeConfig
+from hermes_evenhub_bridge.config import BridgeConfig, parse_ws_port
 from hermes_evenhub_bridge import asr as asr_pkg
 from hermes_evenhub_bridge.asr import REGISTRY
 from hermes_evenhub_bridge.asr.state import get_active, set_active
@@ -43,9 +43,11 @@ async def get_config():
 async def set_config(body: G2Config):
     from hermes_cli.config import load_config, save_config
     cfg = load_config()
-    cfg[_CONFIG_SECTION] = body.model_dump()
+    data = body.model_dump()
+    data["ws_port"] = parse_ws_port(data["ws_port"])
+    cfg[_CONFIG_SECTION] = data
     save_config(cfg)
-    return {"ok": True, **body.model_dump()}
+    return {"ok": True, **data}
 
 
 @router.get("/asr/models")

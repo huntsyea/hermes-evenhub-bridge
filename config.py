@@ -29,9 +29,10 @@ def default_sidecar_bin() -> str:
     return str(hermes_home() / "even_g2" / "bin" / "g2-asr-sidecar")
 
 
-def parse_ws_port(value: str | None) -> int:
+def parse_ws_port(value: object | None) -> int:
+    raw = str(DEFAULT_WS_PORT) if value is None or value == "" else value
     try:
-        port = int(value or str(DEFAULT_WS_PORT))
+        port = int(raw)
     except ValueError:
         return DEFAULT_WS_PORT
     if 0 <= port <= _MAX_PORT:
