@@ -33,7 +33,7 @@ hermes plugins update hermes-evenhub-bridge && hermes gateway restart
 | Symptom | Likely cause / fix |
 |---|---|
 | Platform shows **unavailable** | `EVENHUB_BRIDGE_TOKEN` isn't set, or dependency auto-install failed (check the gateway log for "dependencies still missing" and install `requirements.txt` manually). |
-| Glasses can't connect | Wrong URL or token. Re-run `hermes-evenhub-bridge url`; ensure the exact URL is in the app's `app.json` `network` whitelist; confirm the same token on both sides. |
+| Glasses can't connect | Wrong URL or token. Re-run `hermes even-g2 url`; ensure the exact URL is in the app's `app.json` `network` whitelist; confirm the same token on both sides. |
 | First turn returns a code, not a reply | Pairing gate — run `hermes pairing approve even_g2 <code>`. |
 | Voice always uses whisper, never parakeet | Not on macOS/arm64, or the sidecar download/verification failed (check the gateway log). |
 | "Connected Platforms" pill shows `even_g2`, not the label | A stock Hermes frontend limitation (it renders the raw platform key). Not a bug here. |

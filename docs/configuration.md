@@ -29,7 +29,7 @@ A raw LAN IP breaks the moment the phone leaves the Wi-Fi, so the bridge prefers
 - Tailscale is detected via `tailscale status --json`; if it isn't running, the bridge falls
   back to the LAN IP. **It never installs or brings up Tailscale.**
 
-The advertised URL is shown by `hermes-evenhub-bridge url`, the dashboard ("Glasses URL"),
+The advertised URL is shown by `hermes even-g2 url`, the dashboard ("Glasses URL"),
 and the status file.
 
 ## Voice / ASR
@@ -60,8 +60,8 @@ one-click **Download** for the sidecar. Backend routes mount at
 ## CLI
 
 ```bash
-hermes-evenhub-bridge url                 # print the ws:// URL the glasses should use
-hermes-evenhub-bridge asr list            # list models + which are installed/active
-hermes-evenhub-bridge asr download <name> # fetch a model (auto-downloads the sidecar on macOS)
-hermes-evenhub-bridge asr set <name>      # set the active model (takes effect next voice command)
+hermes even-g2 url                 # print the ws:// URL the glasses should use
+hermes even-g2 asr list            # list models + which are installed/active
+hermes even-g2 asr download <name> # fetch a model (auto-downloads the sidecar on macOS)
+hermes even-g2 asr set <name>      # set the active model (takes effect next voice command)
 ```

@@ -41,7 +41,7 @@ Then:
 2. **Enable and restart** — `hermes plugins enable hermes-evenhub-bridge && hermes gateway restart`.
    The first start auto-installs `websockets`/`numpy`/`faster-whisper` (a few minutes on a cold
    cache; falls back to a clear "install manually" message if it can't).
-3. **Point the glasses at the bridge** — run `hermes-evenhub-bridge url`, put it in the glasses
+3. **Point the glasses at the bridge** — run `hermes even-g2 url`, put it in the glasses
    app's `.env.local` (`VITE_BRIDGE_LAN_URL`) and `app.json` `network` whitelist (exact match).
 4. **Approve pairing** — the first turn returns a code: `hermes pairing approve even_g2 <code>`.
 
