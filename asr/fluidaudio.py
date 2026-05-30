@@ -62,9 +62,13 @@ class FluidAudioBackend:
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
         )
-        hello = json.loads(self._read_frame_timed())
-        if not hello.get("ready"):
-            raise ASRUnavailable(f"sidecar handshake failed: {hello}")
+        try:
+            hello = json.loads(self._read_frame_timed())
+            if not hello.get("ready"):
+                raise ASRUnavailable(f"sidecar handshake failed: {hello}")
+        except Exception:
+            self._kill()
+            raise
 
     def _kill(self) -> None:
         if self._proc is not None:
