@@ -179,6 +179,7 @@ class EvenG2Adapter(BasePlatformAdapter):
                     pass
             self._transcriber = load_active(self._bridge_cfg)
             self._active_name = want
+            self._status.update(asr_active=self._active_name)
         return self._transcriber
 
     def refresh_status(self) -> None:
