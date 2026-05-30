@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -9,6 +10,7 @@ class BridgeConfig:
     token: str = ""
     asr_model: str = "base"
     asr_sidecar_bin: str = "sidecar/.build/release/g2-asr-sidecar"
+    asr_state_path: str = ""
 
     @classmethod
     def from_env(cls) -> "BridgeConfig":
@@ -19,4 +21,8 @@ class BridgeConfig:
             asr_model=os.environ.get("EVENHUB_ASR_MODEL", "base"),
             asr_sidecar_bin=os.environ.get(
                 "EVENHUB_ASR_SIDECAR_BIN", "sidecar/.build/release/g2-asr-sidecar"),
+            asr_state_path=os.environ.get(
+                "EVENHUB_ASR_STATE",
+                str(Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+                    / "even_g2_asr.json")),
         )
