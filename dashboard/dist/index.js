@@ -5,7 +5,7 @@
   var useState = SDK.hooks.useState, useEffect = SDK.hooks.useEffect;
   var C = SDK.components;
   var fetchJSON = SDK.fetchJSON;
-  var BASE = "/api/plugins/hermes-evenhub-bridge";
+  var BASE = (typeof SDK.api === "string" ? SDK.api : "/api/plugins/hermes-evenhub-bridge").replace(/\/$/, "");
 
   function errorMessage(err) {
     if (!err) return "request failed";

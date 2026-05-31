@@ -24,3 +24,12 @@ def test_entry_bundle_fetches_gateway_status_and_reports_errors():
     assert ".catch(function () {})" not in js
     assert "ErrorLine" in js
     assert "!model.installed && isDownloading" not in js
+
+
+def test_entry_uses_sdk_api_base():
+    js = (_ROOT / "dashboard/dist/index.js").read_text()
+    assert "SDK.api" in js
+    assert (
+        '(typeof SDK.api === "string" ? SDK.api : "/api/plugins/hermes-evenhub-bridge")'
+        '.replace(/\\/$/, "")' in js
+    )
