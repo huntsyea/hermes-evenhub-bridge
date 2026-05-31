@@ -31,6 +31,10 @@ def active(sid):
     return json.dumps({"t": "active", "id": sid})
 
 
+def history(sid, items, ok=True):
+    return json.dumps({"t": "history", "id": sid, "items": items, "ok": ok})
+
+
 def transcript(text):
     return json.dumps({"t": "transcript", "text": text})
 

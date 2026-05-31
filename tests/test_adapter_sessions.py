@@ -15,6 +15,17 @@ class FakeWS:
     async def send(self, d): self.sent.append(json.loads(d))
 
 
+class FakeDB:
+    def __init__(self, messages=None):
+        self.messages = messages or {}
+
+    def get_messages(self, session_id):
+        value = self.messages.get(session_id, [])
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+
 def _entry(sid, name, inp, out):
     return SessionEntry(session_key="k", session_id=sid,
                         created_at=datetime.now(), updated_at=datetime.now(),
@@ -22,7 +33,10 @@ def _entry(sid, name, inp, out):
 
 
 class FakeStore:
-    def __init__(self): self.switched = None
+    def __init__(self, messages=None):
+        self.switched = None
+        self._db = FakeDB(messages)
+
     def list_sessions(self, active_minutes=None):
         return [_entry("s1", "One", 2, 3), _entry("s2", "Two", 0, 0)]
     def switch_session(self, session_key, target_session_id):
@@ -58,6 +72,42 @@ async def test_sessions_switch_calls_store_and_acks(tmp_path):
     assert a._session_store.switched[1] == "s2"
     assert any(m["t"] == "active" and m["id"] == "s2" for m in ws.sent)
     assert a._session_by_chat["g2"] == "s2"
+
+
+@pytest.mark.asyncio
+async def test_sessions_switch_sends_stored_history(tmp_path):
+    a = _adapter(tmp_path)
+    a.set_session_store(FakeStore({
+        "s2": [
+            {"role": "system", "content": "ignore"},
+            {"role": "user", "content": "first"},
+            {"role": "assistant", "content": [{"type": "text", "text": "reply"}]},
+            {"role": "tool", "content": "skip"},
+            {"role": "assistant", "content": ""},
+        ],
+    }))
+    ws = FakeWS(); a._registry.register("g2", ws)
+
+    await a.on_sessions_switch("g2", "s2")
+
+    assert [m["t"] for m in ws.sent] == ["active", "history"]
+    assert ws.sent[1]["id"] == "s2"
+    assert ws.sent[1]["ok"] is True
+    assert ws.sent[1]["items"] == [
+        {"kind": "user", "text": "first"},
+        {"kind": "assistant", "text": "reply"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_sessions_switch_reports_history_load_failure(tmp_path):
+    a = _adapter(tmp_path)
+    a.set_session_store(FakeStore({"s2": RuntimeError("db unavailable")}))
+    ws = FakeWS(); a._registry.register("g2", ws)
+
+    await a.on_sessions_switch("g2", "s2")
+
+    assert ws.sent[-1] == {"t": "history", "id": "s2", "items": [], "ok": False}
 
 
 def test_ensure_home_channel_sets_and_persists(tmp_path, monkeypatch):
@@ -104,9 +154,12 @@ async def test_sessions_new_creates_and_pushes_list(tmp_path, monkeypatch):
     await a.on_sessions_new("g2")
 
     assert a._session_by_chat["g2"] == "new1"
+    assert ws.sent[0] == {"t": "active", "id": "new1"}
     frame = next(m for m in ws.sent if m["t"] == "sessions")
     assert frame["active"] == "new1"
     assert "new1" in [it["id"] for it in frame["items"]]
+    assert next(it for it in frame["items"] if it["id"] == "new1")["title"] == "New session"
+    assert ws.sent[-1] == {"t": "history", "id": "new1", "items": [], "ok": True}
 
 
 @pytest.mark.asyncio
@@ -131,3 +184,4 @@ async def test_sessions_new_suppresses_internal_reset_message(tmp_path, monkeypa
 
     assert not any(m["t"] == "assistant.delta" for m in ws.sent)
     assert any(m["t"] == "sessions" and m["active"] == "new1" for m in ws.sent)
+    assert any(m["t"] == "history" and m["id"] == "new1" and m["items"] == [] for m in ws.sent)

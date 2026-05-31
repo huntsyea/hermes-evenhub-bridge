@@ -11,6 +11,14 @@ def test_build_assistant():
     assert json.loads(p.assistant("hi")) == {"t": "assistant", "text": "hi"}
 
 
+def test_build_history():
+    items = [{"kind": "user", "text": "hi"}, {"kind": "assistant", "text": "hello"}]
+    assert json.loads(p.history("s1", items)) == {
+        "t": "history", "id": "s1", "items": items, "ok": True}
+    assert json.loads(p.history("s1", [], ok=False)) == {
+        "t": "history", "id": "s1", "items": [], "ok": False}
+
+
 def test_reject_unknown_client():
     import pytest
     with pytest.raises(ValueError):

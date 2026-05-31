@@ -22,6 +22,9 @@ from .asr import load_active, resolve_active_name
 
 log = logging.getLogger("hermes-evenhub-bridge")
 
+HISTORY_MAX_ITEMS = 80
+HISTORY_MAX_CHARS = 12_000
+
 
 class EvenG2Adapter(BasePlatformAdapter):
     def __init__(
@@ -124,7 +127,7 @@ class EvenG2Adapter(BasePlatformAdapter):
     def _slim(e) -> dict:
         return {
             "id": e.session_id,
-            "title": e.display_name or "(untitled)",
+            "title": e.display_name or "New session",
             "updated": e.updated_at.timestamp() if e.updated_at else 0,
             "tokens": (e.input_tokens or 0) + (e.output_tokens or 0),
         }
@@ -140,6 +143,63 @@ class EvenG2Adapter(BasePlatformAdapter):
         self._session_store.switch_session(session_key, target_id)
         self._session_by_chat[chat_id] = target_id
         await self._registry.send_frame(chat_id, P.active(target_id))
+        items, ok = self._history_items(target_id)
+        await self._registry.send_frame(chat_id, P.history(target_id, items, ok=ok))
+
+    @staticmethod
+    def _content_text(content: Any) -> str:
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, dict):
+            text = content.get("text") or content.get("content")
+            return text if isinstance(text, str) else ""
+        if isinstance(content, list):
+            parts = []
+            for part in content:
+                text = EvenG2Adapter._content_text(part)
+                if text:
+                    parts.append(text)
+            return "\n".join(parts)
+        return ""
+
+    def _history_items(self, session_id: str) -> tuple[list[dict[str, Any]], bool]:
+        db = getattr(self._session_store, "_db", None)
+        get_messages = getattr(db, "get_messages", None)
+        if not callable(get_messages):
+            return [], True
+
+        try:
+            messages = get_messages(session_id)
+        except Exception as e:
+            log.warning("could not load session history for %s: %s", session_id, e)
+            return [], False
+
+        items = []
+        for message in messages:
+            if not isinstance(message, dict):
+                continue
+            role = message.get("role")
+            if role not in {"user", "assistant"}:
+                continue
+            text = self._content_text(message.get("content")).strip()
+            if text:
+                items.append({"kind": role, "text": text})
+        return self._cap_history_items(items), True
+
+    @staticmethod
+    def _cap_history_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        kept: list[dict[str, Any]] = []
+        chars = 0
+        for item in reversed(items):
+            text = item.get("text")
+            item_chars = len(text) if isinstance(text, str) else 0
+            if kept and (len(kept) >= HISTORY_MAX_ITEMS or chars + item_chars > HISTORY_MAX_CHARS):
+                break
+            kept.append(item)
+            chars += item_chars
+        return list(reversed(kept))
 
     def _is_command_output_suppressed(self, chat_id: str) -> bool:
         return self._suppressed_command_output.get(chat_id, 0) > 0
@@ -174,7 +234,9 @@ class EvenG2Adapter(BasePlatformAdapter):
         source = self._source_for(chat_id)
         entry = self._session_store.get_or_create_session(source)
         self._session_by_chat[chat_id] = entry.session_id
+        await self._registry.send_frame(chat_id, P.active(entry.session_id))
         await self.on_sessions_list(chat_id)
+        await self._registry.send_frame(chat_id, P.history(entry.session_id, []))
 
     async def on_stop(self, chat_id: str) -> None:
         await self._dispatch_command(chat_id, "/stop")

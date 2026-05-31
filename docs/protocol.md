@@ -29,5 +29,6 @@ audio stream). Every frame has a `t` (type) field.
 | `turn.done` | — | The turn is complete (the gateway's per-turn guard cleared). |
 | `sessions` | `items`, `active` | The session list. |
 | `active` | `id` | The active session changed. |
+| `history` | `id`, `items`, `ok` | Stored user/assistant stream items for a session; `ok=false` means history could not be loaded. |
 | `transcript` | `text` | A voice transcription result. |
 | `error` | `msg` | A recoverable error; the connection stays open. |
