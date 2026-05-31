@@ -378,6 +378,10 @@
           h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
             h(C.Button, { onClick: configureLocal }, tokenButtonLabel),
             h(C.Button, { onClick: enableServe }, "Enable Tailscale Serve")),
+          h("span", { style: { fontSize: "12px", color: "#94a3b8" } },
+            setup.token_configured
+              ? "Regenerating replaces the phone-app token after Hermes Gateway restarts."
+              : "Generated tokens are shown once. Copy the token before restarting Hermes Gateway."),
           setup.restart_required_for_config
             ? h("span", { style: { fontSize: "12px", color: "#fbbf24" } },
                 "Restart Hermes Gateway after changing host, port, or token settings.")

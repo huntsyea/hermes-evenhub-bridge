@@ -42,6 +42,9 @@ Deploy accordingly:
 - **Explicit setup actions** — the plugin does not mutate Tailscale on import or gateway
   startup. Tailscale Serve is configured only from the dashboard button or
   `hermes even-g2 setup`, and subprocess execution uses an argument list rather than a shell.
+- **Write-only token rotation** — dashboard and CLI token regeneration replace
+  `EVENHUB_BRIDGE_TOKEN` and show only the newly generated value. Existing stored tokens are
+  never revealed, and the Hermes Gateway must restart before a regenerated token is active.
 
 ## Trust assumptions
 

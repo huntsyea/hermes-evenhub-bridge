@@ -36,6 +36,9 @@ The dashboard can perform steps 1-2 through the **Connection** panel:
 - **Enable Tailscale Serve** runs `tailscale serve` with argument-list subprocess execution
   and no Funnel exposure, then persists `EVENHUB_BRIDGE_PUBLIC_URL`.
 
+CLI setup preserves an existing token by default. Use `hermes even-g2 setup --force-token`
+to replace it and print the new value once.
+
 Changing host, port, or token requires a Hermes Gateway restart because the adapter reads
 bridge config at startup.
 
@@ -82,10 +85,11 @@ dashboard API routes changed. The dashboard imports plugin API routes at process
 ## CLI
 
 ```bash
-hermes even-g2 setup               # configure token, loopback bridge, and Tailscale Serve
-hermes even-g2 setup --skip-serve  # write local bridge env only
-hermes even-g2 url                 # print the companion-app URL, preferring configured WSS
-hermes even-g2 asr list            # list models + which are installed/active
-hermes even-g2 asr download <name> # fetch a model (auto-downloads the sidecar on macOS)
-hermes even-g2 asr set <name>      # set the active model (takes effect next voice command)
+hermes even-g2 setup                # configure token, loopback bridge, and Tailscale Serve
+hermes even-g2 setup --skip-serve   # write local bridge env only
+hermes even-g2 setup --force-token  # replace token and print the new value once
+hermes even-g2 url                  # print the companion-app URL, preferring configured WSS
+hermes even-g2 asr list             # list models + which are installed/active
+hermes even-g2 asr download <name>  # fetch a model (auto-downloads the sidecar on macOS)
+hermes even-g2 asr set <name>       # set the active model (takes effect next voice command)
 ```
