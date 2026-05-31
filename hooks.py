@@ -9,6 +9,7 @@ import asyncio
 import logging
 
 from . import protocol as P
+from .tool_labels import tool_label
 
 log = logging.getLogger("hermes-evenhub-bridge")
 _adapter = None
@@ -53,7 +54,7 @@ def _emit(chat_id: str, frame: str) -> None:
 def pre_tool_call(*, tool_name, args, task_id, session_id, tool_call_id, **_):
     chat_id = _chat_for_session(session_id)
     if chat_id:
-        _emit(chat_id, P.tool_start(tool_name))
+        _emit(chat_id, P.tool_start(tool_name, label=tool_label(tool_name, args)))
     return None
 
 

@@ -87,7 +87,26 @@ async def test_sessions_switch_sends_stored_history(tmp_path):
         "s2": [
             {"role": "system", "content": "ignore"},
             {"role": "user", "content": "first"},
-            {"role": "assistant", "content": [{"type": "text", "text": "reply"}]},
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "reply"}],
+                "tool_calls": [
+                    {
+                        "id": "call_terminal",
+                        "function": {
+                            "name": "terminal",
+                            "arguments": '{"command": "date && uptime && uname -m"}',
+                        },
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "tool_name": "terminal",
+                "tool_call_id": "call_terminal",
+                "content": '{"exit_code": 0}',
+            },
+            {"role": "tool", "tool_name": "grep", "content": '{"exit_code": 1, "error": "not found"}'},
             {"role": "tool", "content": "skip"},
             {"role": "assistant", "content": ""},
         ],
@@ -102,6 +121,14 @@ async def test_sessions_switch_sends_stored_history(tmp_path):
     assert ws.sent[1]["items"] == [
         {"kind": "user", "text": "first"},
         {"kind": "assistant", "text": "reply"},
+        {
+            "kind": "tool",
+            "name": "terminal",
+            "running": False,
+            "ok": True,
+            "label": "terminal: date && uptime && uname -m",
+        },
+        {"kind": "tool", "name": "grep", "running": False, "ok": False},
     ]
 
 

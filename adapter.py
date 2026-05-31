@@ -3,6 +3,7 @@ smart glasses. Owns a LAN WebSocket server; bridges glasses <-> the gateway."""
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ from . import protocol as P
 from .server import BridgeServer
 from .setup_flow import local_bridge_url
 from .status import StatusFile
+from .tool_labels import tool_label
 from .asr import load_active, resolve_active_name
 
 log = logging.getLogger("hermes-evenhub-bridge")
@@ -177,16 +179,97 @@ class EvenG2Adapter(BasePlatformAdapter):
             return [], False
 
         items = []
+        tool_labels: dict[str, str] = {}
         for message in messages:
             if not isinstance(message, dict):
                 continue
             role = message.get("role")
-            if role not in {"user", "assistant"}:
+            if role == "assistant":
+                self._remember_tool_labels(message, tool_labels)
+            if role == "tool":
+                tool = self._tool_history_item(message, tool_labels)
+                if tool:
+                    items.append(tool)
                 continue
-            text = self._content_text(message.get("content")).strip()
-            if text:
-                items.append({"kind": role, "text": text})
+            if role in {"user", "assistant"}:
+                text = self._content_text(message.get("content")).strip()
+                if text:
+                    items.append({"kind": role, "text": text})
         return self._cap_history_items(items), True
+
+    @staticmethod
+    def _remember_tool_labels(
+        message: dict[str, Any],
+        labels: dict[str, str],
+    ) -> None:
+        tool_calls = message.get("tool_calls")
+        if isinstance(tool_calls, str):
+            try:
+                tool_calls = json.loads(tool_calls)
+            except Exception:
+                return
+        if not isinstance(tool_calls, list):
+            return
+
+        for call in tool_calls:
+            if not isinstance(call, dict):
+                continue
+            call_id = call.get("id") or call.get("call_id") or call.get("tool_call_id")
+            name, args = EvenG2Adapter._tool_call_name_args(call)
+            if isinstance(call_id, str) and isinstance(name, str) and name.strip():
+                labels[call_id] = tool_label(name.strip(), args)
+
+    @staticmethod
+    def _tool_call_name_args(call: dict[str, Any]) -> tuple[str | None, Any]:
+        function = call.get("function")
+        if not isinstance(function, dict):
+            function = {}
+        name = call.get("name") or call.get("tool_name") or function.get("name")
+        args = (
+            call.get("arguments")
+            or call.get("args")
+            or function.get("arguments")
+            or function.get("args")
+        )
+        return name, args
+
+    @staticmethod
+    def _tool_history_item(
+        message: dict[str, Any],
+        labels: dict[str, str],
+    ) -> dict[str, Any] | None:
+        name = message.get("tool_name") or message.get("name")
+        if not isinstance(name, str) or not name.strip():
+            return None
+        item = {
+            "kind": "tool",
+            "name": name.strip(),
+            "running": False,
+            "ok": EvenG2Adapter._tool_result_ok(message.get("content")),
+        }
+        call_id = message.get("tool_call_id") or message.get("call_id") or message.get("id")
+        label = labels.get(call_id) if isinstance(call_id, str) else None
+        if label and label != item["name"]:
+            item["label"] = label
+        return item
+
+    @staticmethod
+    def _tool_result_ok(content: Any) -> bool:
+        text = EvenG2Adapter._content_text(content).strip()
+        if not text:
+            return True
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            return True
+        if not isinstance(parsed, dict):
+            return True
+        if parsed.get("exit_code") not in (None, 0):
+            return False
+        error = parsed.get("error")
+        if error not in (None, "", False):
+            return False
+        return True
 
     @staticmethod
     def _cap_history_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -194,7 +277,7 @@ class EvenG2Adapter(BasePlatformAdapter):
         chars = 0
         for item in reversed(items):
             text = item.get("text")
-            item_chars = len(text) if isinstance(text, str) else 0
+            item_chars = len(text) if isinstance(text, str) else len(str(item.get("name", "")))
             if kept and (len(kept) >= HISTORY_MAX_ITEMS or chars + item_chars > HISTORY_MAX_CHARS):
                 break
             kept.append(item)

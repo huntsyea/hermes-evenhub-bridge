@@ -24,13 +24,22 @@ async def test_pre_and_post_tool_emit_scoped_frames(tmp_path):
     a._session_by_chat["g2"] = "sess1"
     hooks.bind(a)
 
-    hooks.pre_tool_call(tool_name="Bash", args={}, task_id="", session_id="sess1", tool_call_id="c1")
+    hooks.pre_tool_call(
+        tool_name="Bash",
+        args={"command": "date && uptime && uname -m"},
+        task_id="",
+        session_id="sess1",
+        tool_call_id="c1",
+    )
     hooks.post_tool_call(tool_name="Bash", args={}, result="{}", task_id="",
                          session_id="sess1", tool_call_id="c1", duration_ms=5)
     await asyncio.sleep(0.05)
     kinds = [(m["t"], m["name"]) for m in ws.sent]
     assert ("tool.start", "Bash") in kinds
     assert ("tool.end", "Bash") in kinds
+    assert next(m for m in ws.sent if m["t"] == "tool.start")["label"] == (
+        "Bash: date && uptime && uname -m"
+    )
 
 
 @pytest.mark.asyncio
