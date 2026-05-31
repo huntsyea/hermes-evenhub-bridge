@@ -13,9 +13,10 @@ the repo **root** so `hermes plugins install huntsyea/hermes-evenhub-bridge` wor
 ## Dev setup
 
 ```bash
-uv sync
-uv run pytest -m "not gateway"   # gateway-free suite (deterministic)
-uv run ruff check .
+uv sync --locked
+uv lock --check
+uv run --locked pytest -m "not gateway"   # gateway-free suite (deterministic)
+uv run --locked ruff check .
 ```
 
 The full suite has tests that need the Hermes gateway (marked `@pytest.mark.gateway`).
@@ -35,6 +36,19 @@ uv run --with hermes-agent pytest -m gateway
   glasses-app `protocol.ts` and note it in the PR.
 - Review the [security model](SECURITY.md) for anything touching the WebSocket auth,
   audio handling, subprocess execution, or the sidecar download.
+- Repository review gates and release-tag rules are documented in
+  [Repository governance](docs/repository-governance.md).
+  Maintainers can preview the matching GitHub settings with
+  `bash scripts/apply-github-governance.sh --dry-run`.
+
+## Releases
+
+- Keep `__init__.py`, `pyproject.toml`, `plugin.yaml`, and `dashboard/manifest.json`
+  on the same version.
+- Create releases from `main` only.
+- The sidecar release tag is `sidecar-v<version>` and must point at the same commit as
+  the plugin version it serves.
+- Do not replace published sidecar assets. Publish a new patch version instead.
 
 ## Security
 

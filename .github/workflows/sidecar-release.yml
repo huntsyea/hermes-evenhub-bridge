@@ -18,6 +18,7 @@ on:
       version:
         description: "Plugin version, e.g. 0.3.0 (publishes release sidecar-v<version>)"
         required: true
+        type: string
 
 permissions:
   contents: write  # create the release on this repo
@@ -26,10 +27,13 @@ jobs:
   build:
     runs-on: macos-15  # Apple Silicon; Xcode 16 / Swift 6 (FluidAudio needs tools 6.0)
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Select latest Xcode (Swift 6)
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: latest-stable
 
@@ -57,12 +61,66 @@ jobs:
 
       - name: Resolve version
         id: ver
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            version="$VERSION_INPUT"
           else
-            echo "version=${GITHUB_REF_NAME#sidecar-v}" >> "$GITHUB_OUTPUT"
+            version="${GITHUB_REF_NAME#sidecar-v}"
           fi
+          if ! printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid sidecar version: $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release tag and version
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          TAG="sidecar-v$VERSION"
+          git fetch --force --tags origin "refs/tags/$TAG:refs/tags/$TAG" "main:refs/remotes/origin/main"
+
+          TAG_SHA="$(git rev-list -n 1 "$TAG")"
+          if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::$TAG points at $TAG_SHA, but this workflow is running $GITHUB_SHA"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"; then
+            echo "::error::Official sidecar releases must be built from commits on main"
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          root = Path.cwd()
+          init_text = (root / "__init__.py").read_text()
+          pyproject_text = (root / "pyproject.toml").read_text()
+          plugin_text = (root / "plugin.yaml").read_text()
+          manifest = json.loads((root / "dashboard" / "manifest.json").read_text())
+
+          expected = {
+              "__init__.py": rf'__version__ = "{re.escape(version)}"',
+              "pyproject.toml": rf'version = "{re.escape(version)}"',
+              "plugin.yaml": rf"version: {re.escape(version)}",
+          }
+          sources = {
+              "__init__.py": init_text,
+              "pyproject.toml": pyproject_text,
+              "plugin.yaml": plugin_text,
+          }
+          for name, pattern in expected.items():
+              if not re.search(pattern, sources[name]):
+                  raise SystemExit(f"{name} does not declare version {version}")
+          if manifest.get("version") != version:
+              raise SystemExit(f"dashboard/manifest.json does not declare version {version}")
+          PY
 
       - name: Build sidecar (release)
         working-directory: sidecar
@@ -121,8 +179,7 @@ jobs:
         run: |
           TAG="sidecar-v${{ steps.ver.outputs.version }}"
           gh release create "$TAG" \
+            --verify-tag \
             --title "ASR sidecar $TAG" \
             --notes "Prebuilt parakeet ASR sidecar (macOS arm64) for hermes-evenhub-bridge ${{ steps.ver.outputs.version }}." \
-            g2-asr-sidecar-macos-arm64 g2-asr-sidecar-macos-arm64.sha256 \
-          || gh release upload "$TAG" --clobber \
             g2-asr-sidecar-macos-arm64 g2-asr-sidecar-macos-arm64.sha256
