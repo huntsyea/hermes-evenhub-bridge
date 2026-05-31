@@ -228,11 +228,11 @@ class EvenG2Adapter(BasePlatformAdapter):
                     self._suppressed_command_output.pop(chat_id, None)
 
     async def on_sessions_new(self, chat_id: str) -> None:
-        await self._dispatch_command(chat_id, "/new", suppress_output=True)
-        # /new resets the active pointer; materialize the fresh session so it is
-        # persisted and visible, mark it active, then push the updated list.
         source = self._source_for(chat_id)
-        entry = self._session_store.get_or_create_session(source)
+        session_key = self._session_key_for(source)
+        entry = self._session_store.reset_session(session_key, display_name="New session")
+        if entry is None:
+            entry = self._session_store.get_or_create_session(source, force_new=True)
         self._session_by_chat[chat_id] = entry.session_id
         await self._registry.send_frame(chat_id, P.active(entry.session_id))
         await self.on_sessions_list(chat_id)

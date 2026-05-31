@@ -35,6 +35,7 @@ def _entry(sid, name, inp, out):
 class FakeStore:
     def __init__(self, messages=None):
         self.switched = None
+        self.reset = None
         self._db = FakeDB(messages)
 
     def list_sessions(self, active_minutes=None):
@@ -42,6 +43,11 @@ class FakeStore:
     def switch_session(self, session_key, target_session_id):
         self.switched = (session_key, target_session_id)
         return _entry(target_session_id, "Switched", 0, 0)
+    def reset_session(self, session_key, display_name=None):
+        self.reset = (session_key, display_name)
+        return _entry("new1", display_name or "New session", 0, 0)
+    def get_or_create_session(self, source, force_new=False):
+        return _entry("created1", "Created", 0, 0)
 
 
 def _adapter(tmp_path):
@@ -140,7 +146,8 @@ async def test_sessions_new_creates_and_pushes_list(tmp_path, monkeypatch):
     created = _entry("new1", "", 0, 0)
 
     class NewStore(FakeStore):
-        def get_or_create_session(self, source):
+        def reset_session(self, session_key, display_name=None):
+            self.reset = (session_key, display_name)
             return created
         def list_sessions(self, active_minutes=None):
             return [created, _entry("old", "Old", 0, 0)]
@@ -154,6 +161,7 @@ async def test_sessions_new_creates_and_pushes_list(tmp_path, monkeypatch):
     await a.on_sessions_new("g2")
 
     assert a._session_by_chat["g2"] == "new1"
+    assert a._session_store.reset[1] == "New session"
     assert ws.sent[0] == {"t": "active", "id": "new1"}
     frame = next(m for m in ws.sent if m["t"] == "sessions")
     assert frame["active"] == "new1"
@@ -169,7 +177,7 @@ async def test_sessions_new_suppresses_internal_reset_message(tmp_path, monkeypa
     created = _entry("new1", "", 0, 0)
 
     class NewStore(FakeStore):
-        def get_or_create_session(self, source):
+        def reset_session(self, session_key, display_name=None):
             return created
         def list_sessions(self, active_minutes=None):
             return [created]
@@ -185,3 +193,23 @@ async def test_sessions_new_suppresses_internal_reset_message(tmp_path, monkeypa
     assert not any(m["t"] == "assistant.delta" for m in ws.sent)
     assert any(m["t"] == "sessions" and m["active"] == "new1" for m in ws.sent)
     assert any(m["t"] == "history" and m["id"] == "new1" and m["items"] == [] for m in ws.sent)
+
+
+@pytest.mark.asyncio
+async def test_sessions_new_force_creates_when_no_existing_entry(tmp_path):
+    a = _adapter(tmp_path)
+    ws = FakeWS(); a._registry.register("g2", ws)
+
+    class ColdStore(FakeStore):
+        def reset_session(self, session_key, display_name=None):
+            return None
+        def list_sessions(self, active_minutes=None):
+            return [_entry("created1", "Created", 0, 0)]
+
+    a.set_session_store(ColdStore())
+
+    await a.on_sessions_new("g2")
+
+    assert a._session_by_chat["g2"] == "created1"
+    assert ws.sent[0] == {"t": "active", "id": "created1"}
+    assert ws.sent[-1] == {"t": "history", "id": "created1", "items": [], "ok": True}
