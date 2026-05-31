@@ -40,7 +40,12 @@ cat > "$tmpdir/branch-protection.json" <<'JSON'
     "dismiss_stale_reviews": true,
     "require_code_owner_reviews": true,
     "required_approving_review_count": 1,
-    "require_last_push_approval": true
+    "require_last_push_approval": true,
+    "bypass_pull_request_allowances": {
+      "users": ["huntsyea"],
+      "teams": [],
+      "apps": []
+    }
   },
   "restrictions": null,
   "required_linear_history": true,

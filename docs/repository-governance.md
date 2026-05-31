@@ -24,6 +24,11 @@ external Hermes gateway package.
 conversation resolution, and code owner review. Admin enforcement should be enabled so
 maintainers use the same path as contributors.
 
+The repository owner, `huntsyea`, is the only pull-request review bypass user. This
+lets the owner merge their own changes after required checks pass, while everyone else
+still needs the review gate. This bypass does not skip required status checks, tag
+protection, or conversation resolution.
+
 ## Release tags
 
 Release tags should be protected with rulesets:
