@@ -26,6 +26,21 @@ def test_detect_tailscale_parses_status(monkeypatch):
     assert info["online"] is True
 
 
+def test_tailscale_status_reports_installed_offline(monkeypatch):
+    monkeypatch.setattr(net, "_tailscale_bin", lambda: "/usr/bin/tailscale")
+    offline = {"Self": {"TailscaleIPs": ["100.1.1.1"], "DNSName": "h.ts.net.", "Online": False}}
+
+    class R:
+        returncode = 0
+        stdout = json.dumps(offline)
+
+    monkeypatch.setattr(net.subprocess, "run", lambda *a, **k: R())
+    info = net.tailscale_status()
+    assert info["installed"] is True
+    assert info["online"] is False
+    assert info["binary"] == "/usr/bin/tailscale"
+
+
 def test_detect_tailscale_none_when_binary_absent(monkeypatch):
     monkeypatch.setattr(net, "_tailscale_bin", lambda: None)
     assert net.detect_tailscale() is None
@@ -35,6 +50,14 @@ def test_preferred_url_prefers_magicdns():
     cfg = BridgeConfig(ws_port=8765, net_mode="both")
     ts = {"ip": "100.1.2.3", "magic_dns": "host.ts.net", "online": True}
     assert net.preferred_connect_url(cfg, ts) == "ws://host.ts.net:8765"
+
+
+def test_public_connect_url_uses_configured_url():
+    cfg = BridgeConfig(public_url="wss://custom.example:443")
+    assert net.public_connect_url(cfg, {"magic_dns": "host.ts.net"}) == "wss://custom.example:443"
+    cfg = BridgeConfig(serve_port=9443)
+    assert net.public_connect_url(cfg, {"ip": "100.1.2.3"}) == ""
+    assert net.tailscale_serve_url(cfg, {"magic_dns": "host.ts.net"}) == "wss://host.ts.net:9443"
 
 
 def test_preferred_url_falls_back_to_ip_then_lan(monkeypatch):

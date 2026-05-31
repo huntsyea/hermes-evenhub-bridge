@@ -28,6 +28,47 @@ def test_status_endpoint_reads_status_file(monkeypatch, tmp_path):
     assert r.json()["connected"] == 2
 
 
+def test_setup_status_endpoint_does_not_return_token(monkeypatch, tmp_path):
+    monkeypatch.setenv("EVENHUB_BRIDGE_TOKEN", "secret-token")
+    mod = _load_router(monkeypatch, tmp_path)
+    monkeypatch.setattr(mod.setup_flow, "setup_status", lambda: {
+        "token_configured": True,
+        "public_url": "wss://host.ts.net:8443",
+    })
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    body = client.get("/api/plugins/g2/setup/status").json()
+    assert body["token_configured"] is True
+    assert "secret-token" not in str(body)
+
+
+def test_setup_local_endpoint_returns_generated_token(monkeypatch, tmp_path):
+    mod = _load_router(monkeypatch, tmp_path)
+    monkeypatch.setattr(mod.setup_flow, "configure_local_bridge", lambda: {
+        "ok": True,
+        "token_generated": True,
+        "token": "new-token",
+    })
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    body = client.post("/api/plugins/g2/setup/local").json()
+    assert body["token"] == "new-token"
+
+
+def test_tailscale_serve_endpoint_maps_setup_error(monkeypatch, tmp_path):
+    mod = _load_router(monkeypatch, tmp_path)
+
+    def fail(serve_port=None):
+        raise mod.setup_flow.SetupError("tailscale is installed but not online")
+
+    monkeypatch.setattr(mod.setup_flow, "enable_tailscale_serve", fail)
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    r = client.post("/api/plugins/g2/setup/tailscale-serve", json={"serve_port": 9443})
+    assert r.status_code == 400
+    assert "not online" in r.json()["detail"]
+
+
 @pytest.mark.gateway  # config endpoints import hermes_cli (part of the Hermes install)
 def test_config_roundtrip(monkeypatch, tmp_path):
     pytest.importorskip("hermes_cli.config")

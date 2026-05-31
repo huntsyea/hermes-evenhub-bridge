@@ -12,6 +12,7 @@
 | `asr/` | Pluggable transcription: a registry of backends with automatic whisper fallback. |
 | `hooks.py` | Global tool-call hooks → `tool.start`/`tool.end`, scheduled onto the adapter's loop via `run_coroutine_threadsafe` (hooks may fire off-loop). |
 | `net.py` | Discovers the reachable bridge URL (Tailscale MagicDNS → Tailscale IP → LAN IP) and the bind host. |
+| `setup_flow.py` | Explicit dashboard/CLI setup for the prescribed private WSS path: token generation, loopback env persistence, Tailscale Serve activation, and public URL persistence. |
 | `status.py` | Writes `~/.hermes/even_g2_status.json` so the dashboard (a separate process) can read live device status. |
 | `_bootstrap.py` | Installs the plugin's Python deps on first load (Hermes doesn't do this for directory plugins). |
 | `dashboard/` | `manifest.json` + a hand-written `dist/index.js` (no build step) + `plugin_api.py` (FastAPI routes). |
@@ -31,6 +32,13 @@ for the user to confirm before it's sent as a `text` turn:
 
 ## Non-obvious details
 
+- **Private WSS is a wrapper, not a protocol change.** The bridge still speaks local
+  WebSocket and authenticates the existing `hello {token}` frame. Tailscale Serve terminates
+  TLS and forwards private tailnet traffic to `127.0.0.1:<port>`, so the shared JSON frame
+  protocol stays unchanged.
+- **Setup is explicit.** `setup_flow.py` can write Hermes env values and run
+  `tailscale serve`, but only from the dashboard button or `hermes even-g2 setup`. Importing
+  the plugin or starting the gateway never changes Tailscale state.
 - **Streaming → deltas.** The gateway carries a trailing `" ▉"` streaming cursor;
   `StreamState.delta_for()` strips that exact cursor (not `rstrip`, so real trailing spaces
   survive) and returns only the unsent suffix. Don't assume `send/edit_message` give deltas.

@@ -19,10 +19,13 @@ Deploy accordingly:
 
 - **Treat the token like a root credential.** Use a long random secret; never commit or
   log it. Rotate it if exposed.
-- **Run on a trusted network.** The transport is `ws://` (no TLS), so on a plain LAN the
-  token and traffic are in cleartext. **Prefer Tailscale** (`EVENHUB_BRIDGE_NET` defaults
-  to advertising the tailnet address) — tailnet traffic is WireGuard-encrypted. Don't
-  expose port `8765` to untrusted networks or the public internet.
+- **Prefer the private WSS setup.** The dashboard/`hermes even-g2 setup` path binds the
+  bridge to `127.0.0.1` and uses Tailscale Serve to expose
+  `wss://<machine>.<tailnet>.ts.net:8443` only inside your tailnet. Do not enable Tailscale
+  Funnel for this bridge.
+- **Avoid raw LAN exposure.** The fallback transport is `ws://` (no TLS), so on a plain LAN
+  the token and traffic are in cleartext. Don't expose port `8765` to untrusted networks or
+  the public internet.
 - **Pairing is per device.** A new device id triggers a fresh pairing code
   (`hermes pairing approve even_g2 <code>`); approve only devices you control.
 
@@ -36,13 +39,17 @@ Deploy accordingly:
   **and** its Apple Developer ID signature / Team ID is verified before it's run, so a
   compromised release host can't substitute an unsigned or foreign-signed binary
   (`EVENHUB_ASR_SIDECAR_TEAM_ID` to override for forks).
+- **Explicit setup actions** — the plugin does not mutate Tailscale on import or gateway
+  startup. Tailscale Serve is configured only from the dashboard button or
+  `hermes even-g2 setup`, and subprocess execution uses an argument list rather than a shell.
 
 ## Trust assumptions
 
 - The Hermes gateway is trusted; this plugin runs in-process and inherits its privileges.
 - The Hermes dashboard's auth gates the plugin's HTTP API (`/api/plugins/...`), including
-  the privileged `POST /asr/download` (which fetches + runs the sidecar). Keep the Hermes
-  dashboard access-controlled.
+  the privileged `POST /asr/download` (which fetches + runs the sidecar) and setup routes
+  that write bridge env values or run `tailscale serve`. Keep the Hermes dashboard
+  access-controlled.
 - Local write access to `~/.hermes/plugins/hermes-evenhub-bridge/` is equivalent to code
   execution in the gateway (the plugin pip-installs its own `requirements.txt` on first
   load) — the same trust level as any installed plugin.

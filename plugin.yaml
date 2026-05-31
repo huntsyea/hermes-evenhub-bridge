@@ -12,5 +12,9 @@ optional_env:
     description: WebSocket bind port (default 8765)
   - name: EVENHUB_BRIDGE_NET
     description: Reachability mode — both | tailnet | lan (default both)
+  - name: EVENHUB_BRIDGE_PUBLIC_URL
+    description: Companion app WSS URL written by setup after Tailscale Serve succeeds
+  - name: EVENHUB_BRIDGE_SERVE_PORT
+    description: Tailscale Serve HTTPS/WSS port (default 8443)
   - name: EVENHUB_ASR_MODEL
     description: Active ASR model name (parakeet-tdt-0.6b-v2 | parakeet-tdt-0.6b-v3 | whisper-tiny)

@@ -4,10 +4,10 @@
 
 **Even Realities G2 smart glasses as a first-class [Hermes](https://github.com/NousResearch/hermes-agent) platform.**
 
-This plugin registers `even_g2` as a Hermes gateway platform. It hosts a WebSocket that the
-glasses connect to over your LAN or Tailscale; inbound text and voice are dispatched through
-the Hermes gateway, and the agent's streamed reply, tool-call status, session switching, and
-transcripts flow back to the glasses' 576×288 display.
+This plugin registers `even_g2` as a Hermes gateway platform. It hosts a local WebSocket and
+can configure a private Tailscale Serve `wss://` endpoint for the Even companion app; inbound
+text and voice are dispatched through the Hermes gateway, and the agent's streamed reply,
+tool-call status, session switching, and transcripts flow back to the glasses' 576×288 display.
 
 > **This repo is the Hermes-side plugin only.** The glasses-side app (the TypeScript Even Hub
 > WebView app that runs on the phone) is its sister repo,
@@ -35,19 +35,22 @@ hermes plugins install huntsyea/hermes-evenhub-bridge
 
 Then:
 
-1. **Set the pairing secret** in `~/.hermes/.env` — `EVENHUB_BRIDGE_TOKEN=<shared-secret>`
-   (the platform is unavailable until this is set). Treat it like a root credential — see
-   [SECURITY.md](SECURITY.md).
-2. **Enable and restart** — `hermes plugins enable hermes-evenhub-bridge && hermes gateway restart`.
+1. **Enable and restart** — `hermes plugins enable hermes-evenhub-bridge && hermes gateway restart`.
    The first start auto-installs `websockets`/`numpy`/`faster-whisper` (a few minutes on a cold
    cache; falls back to a clear "install manually" message if it can't).
-3. **Point the glasses at the bridge** — run `hermes even-g2 url`, put it in the glasses
-   app's `.env.local` (`VITE_BRIDGE_LAN_URL`) and `app.json` `network` whitelist (exact match).
+2. **Run setup** — open the **Even Realities G2** dashboard tab and click
+   **Configure local bridge**, then **Enable Tailscale Serve**. The CLI equivalent is
+   `hermes even-g2 setup`. Setup generates `EVENHUB_BRIDGE_TOKEN` when missing, binds the
+   bridge to loopback, and creates a private Tailscale `wss://` app URL.
+3. **Point the companion app at the bridge** — paste the dashboard/CLI **App URL** and pairing
+   token into the Even companion app. The recommended URL looks like
+   `wss://<machine>.<tailnet>.ts.net:8443`.
 4. **Approve pairing** — the first turn returns a code: `hermes pairing approve even_g2 <code>`.
 
 ## Docs
 
 - [Architecture](docs/architecture.md) — components, the streaming/turn-done internals, and the turn sequence diagrams
+- [Tailscale Serve setup plan](docs/tailscale-serve-setup-plan.md) — implementation plan and non-goals for the private WSS setup
 - [Wire protocol](docs/protocol.md) — the client/server frame contract
 - [Configuration](docs/configuration.md) — env vars, Tailscale networking, ASR, dashboard, CLI
 - [FAQ & troubleshooting](docs/faq.md)

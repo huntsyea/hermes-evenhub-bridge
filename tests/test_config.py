@@ -27,6 +27,21 @@ def test_from_env_picks_up_token(monkeypatch):
     assert cfg.token == "tok"
 
 
+def test_from_env_picks_up_public_url_and_serve_port(monkeypatch):
+    monkeypatch.setenv("EVENHUB_BRIDGE_PUBLIC_URL", "wss://host.ts.net:9443")
+    monkeypatch.setenv("EVENHUB_BRIDGE_SERVE_PORT", "9443")
+    cfg = BridgeConfig.from_env()
+    assert cfg.public_url == "wss://host.ts.net:9443"
+    assert cfg.serve_port == 9443
+
+
+def test_from_env_invalid_serve_port_falls_back_to_default(monkeypatch):
+    monkeypatch.setenv("EVENHUB_BRIDGE_SERVE_PORT", "bogus")
+    assert BridgeConfig.from_env().serve_port == 8443
+    monkeypatch.setenv("EVENHUB_BRIDGE_SERVE_PORT", "0")
+    assert BridgeConfig.from_env().serve_port == 8443
+
+
 def test_from_env_defaults(monkeypatch):
     for key in ("EVENHUB_BRIDGE_HOST", "EVENHUB_BRIDGE_PORT", "EVENHUB_BRIDGE_TOKEN"):
         monkeypatch.delenv(key, raising=False)

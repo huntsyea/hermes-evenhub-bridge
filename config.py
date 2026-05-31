@@ -4,6 +4,7 @@ from pathlib import Path
 
 _NET_MODES = ("both", "tailnet", "lan")
 DEFAULT_WS_PORT = 8765
+DEFAULT_SERVE_PORT = 8443
 _MAX_PORT = 65535
 
 
@@ -29,15 +30,24 @@ def default_sidecar_bin() -> str:
     return str(hermes_home() / "even_g2" / "bin" / "g2-asr-sidecar")
 
 
-def parse_ws_port(value: object | None) -> int:
-    raw = str(DEFAULT_WS_PORT) if value is None or value == "" else value
+def _parse_port(value: object | None, default: int) -> int:
+    raw = str(default) if value is None or value == "" else value
     try:
         port = int(raw)
     except ValueError:
-        return DEFAULT_WS_PORT
+        return default
     if 0 <= port <= _MAX_PORT:
         return port
-    return DEFAULT_WS_PORT
+    return default
+
+
+def parse_ws_port(value: object | None) -> int:
+    return _parse_port(value, DEFAULT_WS_PORT)
+
+
+def parse_serve_port(value: object | None) -> int:
+    port = _parse_port(value, DEFAULT_SERVE_PORT)
+    return DEFAULT_SERVE_PORT if port == 0 else port
 
 
 @dataclass
@@ -48,6 +58,8 @@ class BridgeConfig:
     asr_sidecar_bin: str = ""
     asr_state_path: str = ""
     net_mode: str = "both"
+    public_url: str = ""
+    serve_port: int = DEFAULT_SERVE_PORT
 
     @classmethod
     def from_env(cls) -> "BridgeConfig":
@@ -63,4 +75,6 @@ class BridgeConfig:
                 "EVENHUB_ASR_STATE",
                 str(hermes_home() / "even_g2_asr.json")),
             net_mode=net,
+            public_url=os.environ.get("EVENHUB_BRIDGE_PUBLIC_URL", "").strip(),
+            serve_port=parse_serve_port(os.environ.get("EVENHUB_BRIDGE_SERVE_PORT")),
         )
