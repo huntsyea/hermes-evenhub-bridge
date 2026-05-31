@@ -35,7 +35,7 @@ cat > "$tmpdir/branch-protection.json" <<'JSON'
       "Analyze (actions)"
     ]
   },
-  "enforce_admins": true,
+  "enforce_admins": false,
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": true,
     "require_code_owner_reviews": true,

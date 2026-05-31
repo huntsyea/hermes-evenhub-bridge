@@ -21,8 +21,9 @@ external Hermes gateway package.
 ## Review gates
 
 `main` should require pull requests, one approving review, stale review dismissal,
-conversation resolution, and code owner review. Admin enforcement should be enabled so
-maintainers use the same path as contributors.
+conversation resolution, and code owner review. Admin enforcement is disabled for this
+personal repository so repository administrators can perform maintainer operations after
+required checks pass. Keep admin access tightly limited.
 
 ## Release tags
 
