@@ -97,7 +97,7 @@ async def test_sessions_new_creates_and_pushes_list(tmp_path, monkeypatch):
 
     a.set_session_store(NewStore())
 
-    async def _noop(chat_id, command):
+    async def _noop(chat_id, command, **kwargs):
         pass
     monkeypatch.setattr(a, "_dispatch_command", _noop)
 
@@ -107,3 +107,27 @@ async def test_sessions_new_creates_and_pushes_list(tmp_path, monkeypatch):
     frame = next(m for m in ws.sent if m["t"] == "sessions")
     assert frame["active"] == "new1"
     assert "new1" in [it["id"] for it in frame["items"]]
+
+
+@pytest.mark.asyncio
+async def test_sessions_new_suppresses_internal_reset_message(tmp_path, monkeypatch):
+    a = _adapter(tmp_path)
+    ws = FakeWS(); a._registry.register("g2", ws)
+    created = _entry("new1", "", 0, 0)
+
+    class NewStore(FakeStore):
+        def get_or_create_session(self, source):
+            return created
+        def list_sessions(self, active_minutes=None):
+            return [created]
+
+    async def _handle_message(event):
+        await a.send("g2", "Session reset")
+
+    a.set_session_store(NewStore())
+    monkeypatch.setattr(a, "handle_message", _handle_message)
+
+    await a.on_sessions_new("g2")
+
+    assert not any(m["t"] == "assistant.delta" for m in ws.sent)
+    assert any(m["t"] == "sessions" and m["active"] == "new1" for m in ws.sent)

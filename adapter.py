@@ -42,6 +42,7 @@ class EvenG2Adapter(BasePlatformAdapter):
         self._poller_tasks: dict[str, asyncio.Task] = {}
         self._transcriber = None
         self._active_name = None
+        self._suppressed_command_output: dict[str, int] = {}
 
     @property
     def bound_port(self) -> int:
@@ -87,6 +88,8 @@ class EvenG2Adapter(BasePlatformAdapter):
         return {"name": chat_id, "type": "dm"}
 
     async def send(self, chat_id, content, reply_to=None, metadata=None) -> SendResult:
+        if self._is_command_output_suppressed(chat_id):
+            return SendResult(success=True, message_id="g2")
         state = self._registry.stream_state(chat_id)
         state.reset()
         delta = state.delta_for(content or "")
@@ -95,6 +98,8 @@ class EvenG2Adapter(BasePlatformAdapter):
         return SendResult(success=True, message_id="g2")
 
     async def edit_message(self, chat_id, message_id, content, *, finalize=False) -> SendResult:
+        if self._is_command_output_suppressed(chat_id):
+            return SendResult(success=True, message_id=message_id or "g2")
         state = self._registry.stream_state(chat_id)
         delta = state.delta_for(content or "")
         if delta:
@@ -136,13 +141,34 @@ class EvenG2Adapter(BasePlatformAdapter):
         self._session_by_chat[chat_id] = target_id
         await self._registry.send_frame(chat_id, P.active(target_id))
 
-    async def _dispatch_command(self, chat_id: str, command: str) -> None:
+    def _is_command_output_suppressed(self, chat_id: str) -> bool:
+        return self._suppressed_command_output.get(chat_id, 0) > 0
+
+    async def _dispatch_command(
+        self,
+        chat_id: str,
+        command: str,
+        *,
+        suppress_output: bool = False,
+    ) -> None:
         source = self._source_for(chat_id)
-        await self.handle_message(MessageEvent(
-            text=command, message_type=MessageType.COMMAND, source=source))
+        if suppress_output:
+            self._suppressed_command_output[chat_id] = (
+                self._suppressed_command_output.get(chat_id, 0) + 1
+            )
+        try:
+            await self.handle_message(MessageEvent(
+                text=command, message_type=MessageType.COMMAND, source=source))
+        finally:
+            if suppress_output:
+                depth = self._suppressed_command_output.get(chat_id, 0) - 1
+                if depth > 0:
+                    self._suppressed_command_output[chat_id] = depth
+                else:
+                    self._suppressed_command_output.pop(chat_id, None)
 
     async def on_sessions_new(self, chat_id: str) -> None:
-        await self._dispatch_command(chat_id, "/new")
+        await self._dispatch_command(chat_id, "/new", suppress_output=True)
         # /new resets the active pointer; materialize the fresh session so it is
         # persisted and visible, mark it active, then push the updated list.
         source = self._source_for(chat_id)
