@@ -1,7 +1,15 @@
 name: Bug report
 description: Something isn't working
+title: "[Bug]: "
 labels: ["bug"]
 body:
+  - type: checkboxes
+    id: existing
+    attributes:
+      label: Existing issues
+      options:
+        - label: I have searched existing issues for this problem
+          required: true
   - type: textarea
     id: what
     attributes:
@@ -22,3 +30,16 @@ body:
       placeholder: "macOS 15 / Apple Silicon, Hermes version, plugin version, EVENHUB_BRIDGE_NET=..."
     validations:
       required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste relevant `hermes logs` output. Redact tokens and secrets.
+      render: shell
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

@@ -1,5 +1,6 @@
 name: Feature request
 description: Suggest an idea
+title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: textarea
@@ -12,3 +13,10 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

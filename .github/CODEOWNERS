@@ -1,2 +1,5 @@
 # Default owner for everything in this repo.
 * @huntsyea
+
+# CI, release, and community-health changes are repository governance changes.
+/.github/ @huntsyea
