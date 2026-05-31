@@ -6,7 +6,7 @@
 # and listed in requirements.txt.
 [project]
 name = "hermes-evenhub-bridge"
-version = "0.3.1"
+version = "0.3.2"
 description = "Even Realities G2 smart glasses as a Hermes platform adapter."
 readme = "README.md"
 license = "MIT"
