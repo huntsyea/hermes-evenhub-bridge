@@ -1,5 +1,8 @@
 import importlib.util
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 from fastapi import FastAPI
@@ -15,6 +18,29 @@ def _load_router(monkeypatch, tmp_path):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def test_plugin_api_imports_when_loaded_standalone(tmp_path):
+    plugin_api = Path(__file__).parent.parent / "dashboard/plugin_api.py"
+    code = f"""
+import importlib.util
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location("g2_plugin_api_standalone", {str(plugin_api)!r})
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+assert mod.router is not None
+"""
+    env = {**os.environ, "HERMES_HOME": str(tmp_path)}
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_status_endpoint_reads_status_file(monkeypatch, tmp_path):

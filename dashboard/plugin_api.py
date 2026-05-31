@@ -4,10 +4,35 @@ and stores non-secret connection/voice settings in config.yaml under the
 ``even_g2`` block."""
 from __future__ import annotations
 
+import importlib.util
 import os
+import sys
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+
+def _ensure_flat_plugin_package() -> None:
+    """Expose the flat plugin root as ``hermes_evenhub_bridge`` for standalone imports."""
+    package_name = "hermes_evenhub_bridge"
+    if package_name in sys.modules or importlib.util.find_spec(package_name) is not None:
+        return
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(
+        package_name,
+        root / "__init__.py",
+        submodule_search_locations=[str(root)],
+    )
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[package_name] = module
+    spec.loader.exec_module(module)
+
+
+_ensure_flat_plugin_package()
 
 from hermes_evenhub_bridge.status import StatusFile
 from hermes_evenhub_bridge.config import BridgeConfig, parse_ws_port
