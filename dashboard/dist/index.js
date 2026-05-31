@@ -166,8 +166,23 @@
     var gateway = g[0], setGateway = g[1];
     var c = useState({ ws_host: "", ws_port: 8765 });
     var cfg = c[0], setCfg = c[1];
+    var u = useState({ tailscale: {}, token_configured: false, local_url: "", public_url: "" });
+    var setup = u[0], setSetup = u[1];
+    var t = useState("");
+    var setupToken = t[0], setSetupToken = t[1];
     var e = useState({ status: "", config: "" });
     var errors = e[0], setErrors = e[1];
+
+    function loadSetup() {
+      return fetchJSON(BASE + "/setup/status").then(function (data) {
+        setSetup(data);
+        setErrors(function (prev) { return Object.assign({}, prev, { setup: "" }); });
+      }).catch(function (err) {
+        setErrors(function (prev) {
+          return Object.assign({}, prev, { setup: "Setup: " + errorMessage(err) });
+        });
+      });
+    }
 
     useEffect(function () {
       function poll() {
@@ -187,6 +202,7 @@
             return Object.assign({}, prev, { status: "Gateway: " + errorMessage(err) });
           });
         });
+        loadSetup();
       }
       poll();
       var id = setInterval(poll, 3000);
@@ -215,12 +231,51 @@
         });
       });
     }
+    function configureLocal() {
+      setSetupToken("");
+      setErrors(function (prev) { return Object.assign({}, prev, { setup: "" }); });
+      fetchJSON(BASE + "/setup/local", { method: "POST" }).then(function (data) {
+        if (data.token) setSetupToken(data.token);
+        return loadSetup();
+      }).catch(function (err) {
+        setErrors(function (prev) {
+          return Object.assign({}, prev, { setup: "Setup: " + errorMessage(err) });
+        });
+      });
+    }
+    function enableServe() {
+      setErrors(function (prev) { return Object.assign({}, prev, { setup: "" }); });
+      fetchJSON(BASE + "/setup/tailscale-serve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serve_port: setup.serve_port || 8443 }),
+      }).then(function () {
+        return loadSetup();
+      }).catch(function (err) {
+        setErrors(function (prev) {
+          return Object.assign({}, prev, { setup: "Tailscale Serve: " + errorMessage(err) });
+        });
+      });
+    }
+    function copyText(value) {
+      if (value && navigator.clipboard) navigator.clipboard.writeText(value).catch(function (err) {
+        setErrors(function (prev) {
+          return Object.assign({}, prev, { setup: "Copy: " + errorMessage(err) });
+        });
+      });
+    }
     function set(k) { return function (e) {
       var v = e.target.value;
       setCfg(Object.assign({}, cfg, k === "ws_port" ? { ws_port: parseInt(v, 10) || 0 } : (function () { var o = {}; o[k] = v; return o; })()));
     }; }
 
     var gatewayConnected = gateway === "connected";
+    var appUrl = status.public_url || setup.public_url || "";
+    var localUrl = status.local_url || setup.local_url || status.connect_url || "";
+    var tailscale = setup.tailscale || {};
+    var tailscaleLabel = tailscale.online
+      ? (tailscale.magic_dns || tailscale.ip || "online")
+      : (tailscale.installed ? "offline" : "not installed");
 
     return h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } },
       Section("Live status",
@@ -240,18 +295,36 @@
       Section("Connection",
         h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } },
           h("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
-            h(C.Label, null, "Glasses URL"),
-            h("code", { style: { fontSize: "13px", background: "#0f172a", padding: "3px 8px", borderRadius: "4px", color: "#e2e8f0" } }, status.connect_url || "—"),
-            (status.tailscale_dns || status.tailscale_ip)
-              ? h(C.Badge, { style: { background: "#1e3a8a" } }, "tailscale: " + (status.tailscale_dns || status.tailscale_ip))
-              : h("span", { style: { fontSize: "12px", color: "#94a3b8" } }, "LAN only"),
+            h(C.Label, null, "App URL"),
+            h("code", { style: { fontSize: "13px", background: "#0f172a", padding: "3px 8px", borderRadius: "4px", color: "#e2e8f0" } }, appUrl || "—"),
+            appUrl ? h(C.Button, { onClick: function () { copyText(appUrl); }, style: { padding: "2px 10px", fontSize: "12px" } }, "Copy") : null,
+            h(C.Badge, { style: { background: tailscale.online ? "#1e3a8a" : "#334155" } }, "tailscale: " + tailscaleLabel),
             h("span", { style: { fontSize: "12px", color: "#94a3b8" } }, "(" + (status.net_mode || "both") + ")")),
+          h("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+            h(C.Label, null, "Local bridge"),
+            h("code", { style: { fontSize: "13px", background: "#0f172a", padding: "3px 8px", borderRadius: "4px", color: "#e2e8f0" } }, localUrl || "—"),
+            h(C.Badge, { style: { background: setup.token_configured ? "#166534" : "#7f1d1d" } },
+              setup.token_configured ? "token configured" : "token missing")),
+          setupToken
+            ? h("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+                h(C.Label, null, "New token"),
+                h("code", { style: { fontSize: "13px", background: "#0f172a", padding: "3px 8px", borderRadius: "4px", color: "#e2e8f0" } }, setupToken),
+                h(C.Button, { onClick: function () { copyText(setupToken); }, style: { padding: "2px 10px", fontSize: "12px" } }, "Copy"))
+            : null,
+          h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
+            h(C.Button, { onClick: configureLocal }, "Configure local bridge"),
+            h(C.Button, { onClick: enableServe }, "Enable Tailscale Serve")),
+          setup.restart_required_for_config
+            ? h("span", { style: { fontSize: "12px", color: "#fbbf24" } },
+                "Restart Hermes Gateway after changing host, port, or token settings.")
+            : null,
           h("div", { style: { display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" } },
             h(C.Label, null, "Host"),
             h(C.Input, { value: cfg.ws_host, onChange: set("ws_host") }),
             h(C.Label, null, "Port"),
             h(C.Input, { value: String(cfg.ws_port), onChange: set("ws_port") })),
-          ErrorLine(errors.config, null))),
+          ErrorLine(errors.config, null),
+          ErrorLine(errors.setup, loadSetup))),
       h(TranscriptionPanel, null),
       h(C.Button, { onClick: save }, "Save"));
   }

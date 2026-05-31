@@ -10,7 +10,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from hermes_evenhub_bridge.status import StatusFile
-from hermes_evenhub_bridge.config import BridgeConfig, parse_ws_port
+from hermes_evenhub_bridge.config import BridgeConfig, parse_serve_port, parse_ws_port
+from hermes_evenhub_bridge import setup_flow
 from hermes_evenhub_bridge import asr as asr_pkg
 from hermes_evenhub_bridge.asr import REGISTRY
 from hermes_evenhub_bridge.asr.state import get_active, set_active
@@ -23,6 +24,10 @@ _DEFAULT_CONFIG = {"ws_host": "0.0.0.0", "ws_port": 8765}
 class G2Config(BaseModel):
     ws_host: str = "0.0.0.0"
     ws_port: int = 8765
+
+
+class ServeRequest(BaseModel):
+    serve_port: int | None = None
 
 
 def _sidecar_status(cfg: BridgeConfig) -> dict:
@@ -65,6 +70,28 @@ async def set_config(body: G2Config):
     cfg[_CONFIG_SECTION] = data
     save_config(cfg)
     return {"ok": True, **data}
+
+
+@router.get("/setup/status")
+async def get_setup_status():
+    return setup_flow.setup_status()
+
+
+@router.post("/setup/local")
+async def setup_local():
+    try:
+        return setup_flow.configure_local_bridge()
+    except setup_flow.SetupError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/setup/tailscale-serve")
+async def setup_tailscale_serve(body: ServeRequest | None = None):
+    serve_port = parse_serve_port(body.serve_port) if body else None
+    try:
+        return setup_flow.enable_tailscale_serve(serve_port=serve_port)
+    except setup_flow.SetupError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/asr/models")

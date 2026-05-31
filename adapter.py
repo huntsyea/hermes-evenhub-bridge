@@ -16,6 +16,7 @@ from .config import BridgeConfig
 from .connections import ConnectionRegistry
 from . import protocol as P
 from .server import BridgeServer
+from .setup_flow import local_bridge_url
 from .status import StatusFile
 from .asr import load_active, resolve_active_name
 
@@ -59,6 +60,9 @@ class EvenG2Adapter(BasePlatformAdapter):
             self._status.update(
                 connected=0, mic="off", active_session="",
                 connect_url=connect_url,
+                public_url=self._bridge_cfg.public_url,
+                local_url=local_bridge_url(self._bridge_cfg),
+                serve_port=self._bridge_cfg.serve_port,
                 tailscale_dns=(ts or {}).get("magic_dns", ""),
                 tailscale_ip=(ts or {}).get("ip", ""),
                 net_mode=self._bridge_cfg.net_mode,

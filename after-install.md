@@ -4,19 +4,7 @@ Even Realities G2 smart glasses as a Hermes **platform** adapter. The plugin hos
 WebSocket the glasses connect to; inbound messages flow through the gateway and the
 agent's streamed replies flow back.
 
-## 1. Set the pairing secret
-
-In `~/.hermes/.env`:
-
-```
-EVENHUB_BRIDGE_TOKEN=<shared-secret>
-```
-
-The platform reports **unavailable** until this is set. Optional:
-`EVENHUB_BRIDGE_HOST` (default `0.0.0.0`), `EVENHUB_BRIDGE_PORT` (default `8765`),
-`EVENHUB_BRIDGE_NET` (`both` | `tailnet` | `lan`, default `both`).
-
-## 2. Enable and restart
+## 1. Enable and restart
 
 ```bash
 hermes plugins enable hermes-evenhub-bridge
@@ -32,18 +20,32 @@ restart:
 <your-hermes-python> -m pip install -r ~/.hermes/plugins/hermes-evenhub-bridge/requirements.txt
 ```
 
-## 3. Point the glasses at the bridge
+## 2. Configure private WSS access
 
-Get the ready-to-use URL (prefers your Tailscale MagicDNS name, which works from
-anywhere on the tailnet; otherwise the LAN IP):
+Open the **Even Realities G2** dashboard tab and use the **Connection** panel:
+
+1. Click **Configure local bridge**. This writes a long `EVENHUB_BRIDGE_TOKEN` if one is
+   missing and switches the bridge to loopback settings.
+2. Restart Hermes Gateway if the dashboard says a restart is required.
+3. Click **Enable Tailscale Serve**. This runs:
 
 ```bash
-hermes even-g2 url
+tailscale serve --https=8443 --bg http://127.0.0.1:8765
 ```
 
-It's also shown on the **Even Realities G2** dashboard tab (`/even-g2`) as **Glasses
-URL**. Put that URL in the glasses app's `.env.local` as `VITE_BRIDGE_LAN_URL`, and add
-it to `app.json`'s `network` whitelist (exact match).
+The CLI equivalent is:
+
+```bash
+hermes even-g2 setup
+```
+
+Setup requires Tailscale to already be installed, logged in, and MagicDNS-enabled. The plugin
+does not install Tailscale or enable Funnel.
+
+## 3. Point the companion app at the bridge
+
+Paste the dashboard **App URL** and token into the Even companion app. The URL should look
+like `wss://<machine>.<tailnet>.ts.net:8443`.
 
 A newly connected device is **pairing-gated** — its first turn returns a pairing code:
 

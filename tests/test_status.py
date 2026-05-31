@@ -16,3 +16,6 @@ def test_read_missing_returns_defaults(tmp_path):
     data = sf.read()
     assert data["connected"] == 0
     assert data["mic"] == "off"
+    assert data["public_url"] == ""
+    assert data["local_url"] == ""
+    assert data["serve_port"] == 8443
