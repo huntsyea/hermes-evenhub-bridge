@@ -13,6 +13,8 @@ def setup_parser(parser) -> None:
                        help="Tailscale Serve HTTPS port, default 8443")
     setup.add_argument("--skip-serve", action="store_true",
                        help="Persist local bridge settings only")
+    setup.add_argument("--force-token", action="store_true",
+                       help="Replace any existing bridge token and print the new token once")
     asr_p = sub.add_parser("asr", help="Manage ASR models")
     asr_sub = asr_p.add_subparsers(dest="asr_cmd")
     asr_sub.add_parser("list", help="List available ASR models")
@@ -59,7 +61,9 @@ def _cmd_url() -> int:
 def _cmd_setup(args) -> int:
     from . import setup_flow
     try:
-        local = setup_flow.configure_local_bridge()
+        local = setup_flow.configure_local_bridge(
+            force_token=getattr(args, "force_token", False),
+        )
         print("Local bridge configuration written.")
         if local["token_generated"]:
             print("Pairing token:")

@@ -46,4 +46,5 @@ def test_entry_supports_token_regeneration():
     assert "Regenerate token" in js
     assert "force_token" in js
     assert "window.confirm" in js
+    assert "Regenerating replaces the phone-app token after Hermes Gateway restarts." in js
     assert "Local bridge settings saved. Existing token unchanged." in js

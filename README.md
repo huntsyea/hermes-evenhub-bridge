@@ -41,7 +41,8 @@ Then:
 2. **Run setup** — open the **Even Realities G2** dashboard tab and click
    **Generate token**, then **Enable Tailscale Serve**. The CLI equivalent is
    `hermes even-g2 setup`. Setup generates `EVENHUB_BRIDGE_TOKEN` when missing, binds the
-   bridge to loopback, and creates a private Tailscale `wss://` app URL.
+   bridge to loopback, and creates a private Tailscale `wss://` app URL. Use
+   `hermes even-g2 setup --force-token` to replace an existing token from the CLI.
 3. **Point the companion app at the bridge** — paste the dashboard/CLI **App URL** and pairing
    token into the Even companion app. The recommended URL looks like
    `wss://<machine>.<tailnet>.ts.net:8443`.
