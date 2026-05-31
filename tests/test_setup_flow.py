@@ -27,6 +27,8 @@ def test_configure_local_bridge_generates_and_persists_token(monkeypatch, tmp_pa
     cfg = BridgeConfig(ws_host="0.0.0.0", ws_port=9000, token="", net_mode="both")
     result = setup_flow.configure_local_bridge(cfg=cfg, token_factory=lambda: "generated-token")
     assert result["token"] == "generated-token"
+    assert result["token_generated"] is True
+    assert result["token_replaced"] is False
     assert result["restart_required"] is True
     env_text = (tmp_path / ".env").read_text()
     assert "EVENHUB_BRIDGE_TOKEN=generated-token" in env_text
@@ -34,6 +36,41 @@ def test_configure_local_bridge_generates_and_persists_token(monkeypatch, tmp_pa
     assert "EVENHUB_BRIDGE_NET=lan" in env_text
     assert "EVENHUB_BRIDGE_PORT=9000" in env_text
     assert stat.S_IMODE((tmp_path / ".env").stat().st_mode) == 0o600
+
+
+def test_configure_local_bridge_preserves_existing_token(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    (tmp_path / ".env").write_text("EVENHUB_BRIDGE_TOKEN=existing-token\n")
+    cfg = BridgeConfig(ws_host="127.0.0.1", ws_port=9000, token="existing-token", net_mode="lan")
+    result = setup_flow.configure_local_bridge(
+        cfg=cfg,
+        token_factory=lambda: "new-token",
+    )
+    assert result["token"] == ""
+    assert result["token_generated"] is False
+    assert result["token_replaced"] is False
+    assert result["restart_required"] is False
+    env_text = (tmp_path / ".env").read_text()
+    assert "EVENHUB_BRIDGE_TOKEN=existing-token" in env_text
+    assert "new-token" not in env_text
+
+
+def test_configure_local_bridge_can_replace_existing_token(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    (tmp_path / ".env").write_text("EVENHUB_BRIDGE_TOKEN=existing-token\n")
+    cfg = BridgeConfig(ws_host="127.0.0.1", ws_port=9000, token="existing-token", net_mode="lan")
+    result = setup_flow.configure_local_bridge(
+        cfg=cfg,
+        force_token=True,
+        token_factory=lambda: "replacement-token",
+    )
+    assert result["token"] == "replacement-token"
+    assert result["token_generated"] is True
+    assert result["token_replaced"] is True
+    assert result["restart_required"] is True
+    env_text = (tmp_path / ".env").read_text()
+    assert "EVENHUB_BRIDGE_TOKEN=replacement-token" in env_text
+    assert "existing-token" not in env_text
 
 
 def test_enable_tailscale_serve_runs_serve_without_shell(monkeypatch, tmp_path):

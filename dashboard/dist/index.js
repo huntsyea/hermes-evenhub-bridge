@@ -211,6 +211,8 @@
     var setup = u[0], setSetup = u[1];
     var t = useState("");
     var setupToken = t[0], setSetupToken = t[1];
+    var m = useState("");
+    var setupMessage = m[0], setSetupMessage = m[1];
     var e = useState({ status: "", config: "" });
     var errors = e[0], setErrors = e[1];
 
@@ -273,10 +275,24 @@
       });
     }
     function configureLocal() {
+      var forceToken = !!setup.token_configured;
+      if (forceToken && !window.confirm("Regenerate the Even G2 bridge token? The existing phone-app token will stop working after Hermes Gateway restarts.")) {
+        return;
+      }
       setSetupToken("");
+      setSetupMessage("");
       setErrors(function (prev) { return Object.assign({}, prev, { setup: "" }); });
-      fetchJSON(BASE + "/setup/local", { method: "POST" }).then(function (data) {
-        if (data.token) setSetupToken(data.token);
+      fetchJSON(BASE + "/setup/local", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force_token: forceToken }),
+      }).then(function (data) {
+        if (data.token) {
+          setSetupToken(data.token);
+          setSetupMessage(data.token_replaced ? "Token regenerated. Restart Hermes Gateway before reconnecting the phone app." : "Token generated. Restart Hermes Gateway before connecting the phone app.");
+        } else {
+          setSetupMessage("Local bridge settings saved. Existing token unchanged.");
+        }
         return loadSetup();
       }).catch(function (err) {
         setErrors(function (prev) {
@@ -317,6 +333,7 @@
     var tailscaleLabel = tailscale.online
       ? (tailscale.magic_dns || tailscale.ip || "online")
       : (tailscale.installed ? "offline" : "not installed");
+    var tokenButtonLabel = setup.token_configured ? "Regenerate token" : "Generate token";
 
     return h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } },
       Section("Live status",
@@ -355,8 +372,11 @@
                 h("code", { style: { fontSize: "13px", background: "#0f172a", padding: "3px 8px", borderRadius: "4px", color: "#e2e8f0" } }, setupToken),
                 h(C.Button, { onClick: function () { copyText(setupToken); }, style: { padding: "2px 10px", fontSize: "12px" } }, "Copy"))
             : null,
+          setupMessage
+            ? h("span", { style: { fontSize: "12px", color: "#86efac" } }, setupMessage)
+            : null,
           h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-            h(C.Button, { onClick: configureLocal }, "Configure local bridge"),
+            h(C.Button, { onClick: configureLocal }, tokenButtonLabel),
             h(C.Button, { onClick: enableServe }, "Enable Tailscale Serve")),
           setup.restart_required_for_config
             ? h("span", { style: { fontSize: "12px", color: "#fbbf24" } },
