@@ -21,16 +21,18 @@ jobs:
       matrix:
         python: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
-      - run: uv sync
+      - run: uv sync --locked
       - name: Lint
-        run: uv run ruff check .
+        run: uv run --locked ruff check .
       - name: Tests (gateway-free)
-        run: uv run pytest -m "not gateway" -q
+        run: uv run --locked pytest -m "not gateway" -q
 
   # Best-effort: run the gateway-marked tests against the real Hermes gateway from
   # PyPI. Not a required check (gateway version drift can break it); it's a canary.
@@ -38,11 +40,13 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
           python-version: "3.11"
-      - run: uv sync
+      - run: uv sync --locked
       - name: Tests (gateway, with hermes-agent)
-        run: uv run --with hermes-agent pytest -m gateway -q
+        run: uv run --locked --with hermes-agent pytest -m gateway -q

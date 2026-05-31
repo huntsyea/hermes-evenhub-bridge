@@ -51,7 +51,9 @@ Then:
 - [Wire protocol](docs/protocol.md) — the client/server frame contract
 - [Configuration](docs/configuration.md) — env vars, Tailscale networking, ASR, dashboard, CLI
 - [FAQ & troubleshooting](docs/faq.md)
-- [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+- [Repository governance](docs/repository-governance.md) — required checks, review gates, and release-tag rules
+- [Security](SECURITY.md) · [Support](SUPPORT.md) · [Contributing](CONTRIBUTING.md) ·
+  [Code of Conduct](CODE_OF_CONDUCT.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 ## License
 
