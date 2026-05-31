@@ -29,8 +29,10 @@ The prescribed open-source setup is:
 
 The dashboard can perform steps 1-2 through the **Connection** panel:
 
-- **Configure local bridge** writes a token if needed, `EVENHUB_BRIDGE_HOST=127.0.0.1`,
-  `EVENHUB_BRIDGE_NET=lan`, and the current bridge port.
+- **Generate token** writes `EVENHUB_BRIDGE_TOKEN` when it is missing,
+  `EVENHUB_BRIDGE_HOST=127.0.0.1`, `EVENHUB_BRIDGE_NET=lan`, and the current bridge port.
+- **Regenerate token** replaces the existing `EVENHUB_BRIDGE_TOKEN` and shows the new token
+  once. The old companion-app token stops working after the Hermes Gateway restart.
 - **Enable Tailscale Serve** runs `tailscale serve` with argument-list subprocess execution
   and no Funnel exposure, then persists `EVENHUB_BRIDGE_PUBLIC_URL`.
 
@@ -73,6 +75,9 @@ The **Even Realities G2** tab at `/even-g2` shows live status (connected devices
 active session), the **App URL** to paste into the companion app, local bridge setup controls,
 Tailscale Serve setup, and the ASR model picker with a one-click **Download** for the sidecar.
 Backend routes mount at `/api/plugins/hermes-evenhub-bridge/`.
+
+After updating this plugin, restart the Hermes dashboard process as well as the gateway when
+dashboard API routes changed. The dashboard imports plugin API routes at process startup.
 
 ## CLI
 

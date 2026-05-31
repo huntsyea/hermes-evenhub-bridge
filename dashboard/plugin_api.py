@@ -55,6 +55,10 @@ class ServeRequest(BaseModel):
     serve_port: int | None = None
 
 
+class LocalSetupRequest(BaseModel):
+    force_token: bool = False
+
+
 def _sidecar_status(cfg: BridgeConfig) -> dict:
     path = cfg.asr_sidecar_bin
     installed = bool(path) and os.path.exists(path) and os.access(path, os.X_OK)
@@ -103,9 +107,10 @@ def get_setup_status():
 
 
 @router.post("/setup/local")
-def setup_local():
+def setup_local(body: LocalSetupRequest | None = None):
     try:
-        return setup_flow.configure_local_bridge()
+        force_token = body.force_token if body else False
+        return setup_flow.configure_local_bridge(force_token=force_token)
     except setup_flow.SetupError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

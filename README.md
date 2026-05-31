@@ -39,7 +39,7 @@ Then:
    The first start auto-installs `websockets`/`numpy`/`faster-whisper` (a few minutes on a cold
    cache; falls back to a clear "install manually" message if it can't).
 2. **Run setup** — open the **Even Realities G2** dashboard tab and click
-   **Configure local bridge**, then **Enable Tailscale Serve**. The CLI equivalent is
+   **Generate token**, then **Enable Tailscale Serve**. The CLI equivalent is
    `hermes even-g2 setup`. Setup generates `EVENHUB_BRIDGE_TOKEN` when missing, binds the
    bridge to loopback, and creates a private Tailscale `wss://` app URL.
 3. **Point the companion app at the bridge** — paste the dashboard/CLI **App URL** and pairing

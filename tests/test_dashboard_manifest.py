@@ -38,3 +38,12 @@ def test_entry_uses_sdk_api_base():
         '(typeof SDK.api === "string" ? SDK.api : "/api/plugins/hermes-evenhub-bridge")'
         '.replace(/\\/$/, "")' in js
     )
+
+
+def test_entry_supports_token_regeneration():
+    js = (_ROOT / "dashboard/dist/index.js").read_text()
+    assert "Generate token" in js
+    assert "Regenerate token" in js
+    assert "force_token" in js
+    assert "window.confirm" in js
+    assert "Local bridge settings saved. Existing token unchanged." in js

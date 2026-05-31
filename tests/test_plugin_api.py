@@ -70,15 +70,39 @@ def test_setup_status_endpoint_does_not_return_token(monkeypatch, tmp_path):
 
 def test_setup_local_endpoint_returns_generated_token(monkeypatch, tmp_path):
     mod = _load_router(monkeypatch, tmp_path)
-    monkeypatch.setattr(mod.setup_flow, "configure_local_bridge", lambda: {
+    monkeypatch.setattr(mod.setup_flow, "configure_local_bridge", lambda force_token=False: {
         "ok": True,
         "token_generated": True,
+        "token_replaced": force_token,
         "token": "new-token",
     })
     app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
     client = TestClient(app)
     body = client.post("/api/plugins/g2/setup/local").json()
     assert body["token"] == "new-token"
+    assert body["token_replaced"] is False
+
+
+def test_setup_local_endpoint_accepts_force_token(monkeypatch, tmp_path):
+    mod = _load_router(monkeypatch, tmp_path)
+    calls = []
+
+    def configure_local_bridge(force_token=False):
+        calls.append(force_token)
+        return {
+            "ok": True,
+            "token_generated": True,
+            "token_replaced": force_token,
+            "token": "replacement-token",
+        }
+
+    monkeypatch.setattr(mod.setup_flow, "configure_local_bridge", configure_local_bridge)
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    body = client.post("/api/plugins/g2/setup/local", json={"force_token": True}).json()
+    assert calls == [True]
+    assert body["token"] == "replacement-token"
+    assert body["token_replaced"] is True
 
 
 def test_tailscale_serve_endpoint_maps_setup_error(monkeypatch, tmp_path):

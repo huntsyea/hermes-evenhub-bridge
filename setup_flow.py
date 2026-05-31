@@ -99,14 +99,16 @@ def setup_status(cfg: BridgeConfig | None = None) -> dict:
 def configure_local_bridge(
     *,
     cfg: BridgeConfig | None = None,
+    force_token: bool = False,
     token_factory: Callable[[], str] | None = None,
 ) -> dict:
     cfg = cfg or BridgeConfig.from_env()
     token = cfg.token
     generated_token = ""
-    if not token:
+    if force_token or not token:
         generated_token = (token_factory or (lambda: secrets.token_urlsafe(32)))()
         _save_env_value(_ENV_TOKEN, generated_token)
+    token_replaced = bool(token and generated_token)
 
     _save_env_value(_ENV_HOST, _LOCAL_HOST)
     _save_env_value(_ENV_NET, "lan")
@@ -114,6 +116,7 @@ def configure_local_bridge(
     return {
         "ok": True,
         "token_generated": bool(generated_token),
+        "token_replaced": token_replaced,
         "token": generated_token,
         "restart_required": cfg.ws_host != _LOCAL_HOST or cfg.net_mode != "lan" or bool(generated_token),
         "local_url": local_bridge_url(cfg),
