@@ -21,9 +21,14 @@ def test_entry_bundle_exists_and_registers():
 def test_entry_bundle_fetches_gateway_status_and_reports_errors():
     js = (_ROOT / "dashboard/dist/index.js").read_text()
     assert "SDK.api.getStatus" in js or 'fetchJSON("/api/status")' in js
+    assert "data.gateway_platforms || data.platforms" in js
     assert ".catch(function () {})" not in js
     assert "ErrorLine" in js
     assert "!model.installed && isDownloading" not in js
+    assert "Install sidecar" in js
+    assert "No transcription models found." in js
+    assert "toneColor" in js
+    assert "shortPath" in js
 
 
 def test_entry_uses_sdk_api_base():
