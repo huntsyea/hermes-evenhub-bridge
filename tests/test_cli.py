@@ -17,7 +17,7 @@ def test_url_dispatch(monkeypatch, capsys):
     rc = cli.run(_parse(["url"]))
     assert rc == 0
     out = capsys.readouterr().out
-    assert "ws://host.ts.net:8765" in out
+    assert out.splitlines()[0] == "ws://host.ts.net:8765"
     assert "Run `hermes even-g2 setup`" in out
 
 
@@ -35,7 +35,7 @@ def test_setup_dispatch(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "generated-token" in out
-    assert "wss://host.ts.net:8443" in out
+    assert "App URL: wss://host.ts.net:8443" in out.splitlines()
 
 
 def test_asr_list_dispatch(monkeypatch, tmp_path, capsys):

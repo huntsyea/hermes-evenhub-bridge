@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from hermes_evenhub_bridge.status import StatusFile
-from hermes_evenhub_bridge.config import BridgeConfig, parse_serve_port, parse_ws_port
+from hermes_evenhub_bridge.config import BridgeConfig, parse_ws_port
 from hermes_evenhub_bridge import setup_flow
 from hermes_evenhub_bridge import asr as asr_pkg
 from hermes_evenhub_bridge.asr import REGISTRY
@@ -73,12 +73,12 @@ async def set_config(body: G2Config):
 
 
 @router.get("/setup/status")
-async def get_setup_status():
+def get_setup_status():
     return setup_flow.setup_status()
 
 
 @router.post("/setup/local")
-async def setup_local():
+def setup_local():
     try:
         return setup_flow.configure_local_bridge()
     except setup_flow.SetupError as e:
@@ -86,8 +86,8 @@ async def setup_local():
 
 
 @router.post("/setup/tailscale-serve")
-async def setup_tailscale_serve(body: ServeRequest | None = None):
-    serve_port = parse_serve_port(body.serve_port) if body else None
+def setup_tailscale_serve(body: ServeRequest | None = None):
+    serve_port = body.serve_port if body else None
     try:
         return setup_flow.enable_tailscale_serve(serve_port=serve_port)
     except setup_flow.SetupError as e:

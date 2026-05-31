@@ -1,4 +1,5 @@
 import subprocess
+import stat
 
 from hermes_evenhub_bridge.config import BridgeConfig
 from hermes_evenhub_bridge import setup_flow
@@ -32,6 +33,7 @@ def test_configure_local_bridge_generates_and_persists_token(monkeypatch, tmp_pa
     assert "EVENHUB_BRIDGE_HOST=127.0.0.1" in env_text
     assert "EVENHUB_BRIDGE_NET=lan" in env_text
     assert "EVENHUB_BRIDGE_PORT=9000" in env_text
+    assert stat.S_IMODE((tmp_path / ".env").stat().st_mode) == 0o600
 
 
 def test_enable_tailscale_serve_runs_serve_without_shell(monkeypatch, tmp_path):
