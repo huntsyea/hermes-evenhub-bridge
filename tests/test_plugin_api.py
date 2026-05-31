@@ -66,6 +66,51 @@ def test_get_asr_models(monkeypatch, tmp_path):
     assert {"parakeet-tdt-0.6b-v2", "whisper-tiny"} <= names
 
 
+def test_get_asr_models_does_not_run_sidecar_check(monkeypatch, tmp_path):
+    monkeypatch.setenv("EVENHUB_ASR_STATE", str(tmp_path / "asr.json"))
+    mod = _load_router(monkeypatch, tmp_path)
+    calls = []
+
+    def fake_build(name, cfg):
+        calls.append(name)
+        if name.startswith("parakeet"):
+            raise AssertionError("sidecar status must not launch model checks")
+
+        class Backend:
+            def is_installed(self):
+                return False
+
+        return Backend()
+
+    monkeypatch.setattr(mod.asr_pkg, "_build_backend", fake_build)
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    r = client.get("/api/plugins/g2/asr/models")
+    assert r.status_code == 200
+    assert all("parakeet" not in name for name in calls)
+    assert any("parakeet" not in name for name in calls)
+
+
+def test_get_asr_models_reports_sidecar_binary(monkeypatch, tmp_path):
+    sidecar = tmp_path / "bin" / "g2-asr-sidecar"
+    sidecar.parent.mkdir()
+    sidecar.write_bytes(b"x")
+    sidecar.chmod(0o755)
+    monkeypatch.setenv("EVENHUB_ASR_STATE", str(tmp_path / "asr.json"))
+    monkeypatch.setenv("EVENHUB_ASR_SIDECAR_BIN", str(sidecar))
+    mod = _load_router(monkeypatch, tmp_path)
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    body = client.get("/api/plugins/g2/asr/models").json()
+    assert body["sidecar"]["path"] == str(sidecar)
+    assert body["sidecar"]["installed"] is True
+    parakeet = next(m for m in body["models"] if m["name"] == "parakeet-tdt-0.6b-v2")
+    assert parakeet["installed"] is False
+    assert parakeet["downloadable"] is True
+    assert parakeet["sidecar_installed"] is True
+    assert parakeet["active"] is True
+
+
 def test_set_active_roundtrip(monkeypatch, tmp_path):
     monkeypatch.setenv("EVENHUB_ASR_STATE", str(tmp_path / "asr.json"))
     mod = _load_router(monkeypatch, tmp_path)
@@ -82,3 +127,19 @@ def test_set_unknown_is_400(monkeypatch, tmp_path):
     app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
     client = TestClient(app)
     assert client.post("/api/plugins/g2/asr/set/bogus").status_code == 400
+
+
+def test_download_failure_is_non_2xx(monkeypatch, tmp_path):
+    monkeypatch.setenv("EVENHUB_ASR_STATE", str(tmp_path / "asr.json"))
+    mod = _load_router(monkeypatch, tmp_path)
+
+    class Backend:
+        def ensure_downloaded(self):
+            raise RuntimeError("sidecar missing")
+
+    monkeypatch.setattr(mod.asr_pkg, "_build_backend", lambda name, cfg: Backend())
+    app = FastAPI(); app.include_router(mod.router, prefix="/api/plugins/g2")
+    client = TestClient(app)
+    r = client.post("/api/plugins/g2/asr/download/parakeet-tdt-0.6b-v2")
+    assert r.status_code == 500
+    assert r.json()["detail"] == "sidecar missing"
