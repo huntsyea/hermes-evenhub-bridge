@@ -19,6 +19,7 @@ from . import protocol as P
 from .server import BridgeServer
 from .setup_flow import local_bridge_url
 from .status import StatusFile
+from .session_items import session_items
 from .tool_labels import tool_label
 from .asr import load_active, resolve_active_name
 
@@ -125,17 +126,24 @@ class EvenG2Adapter(BasePlatformAdapter):
         return self.build_source(chat_id=chat_id, chat_name="Even G2",
                                  chat_type="dm", user_id=chat_id, user_name="g2")
 
-    @staticmethod
-    def _slim(e) -> dict:
-        return {
-            "id": e.session_id,
-            "title": e.display_name or "New session",
-            "updated": e.updated_at.timestamp() if e.updated_at else 0,
-            "tokens": (e.input_tokens or 0) + (e.output_tokens or 0),
-        }
+    def _session_title(self, session_id: str) -> str | None:
+        db = getattr(self._session_store, "_db", None)
+        get_session_title = getattr(db, "get_session_title", None)
+        if callable(get_session_title):
+            try:
+                title = get_session_title(session_id)
+            except Exception as e:
+                log.debug("could not load session title for %s: %s", session_id, e)
+                return None
+            if isinstance(title, str) and title.strip():
+                return title.strip()
+        return None
+
+    def _session_items(self) -> list[dict[str, Any]]:
+        return session_items(self._session_store.list_sessions(), self._session_title)
 
     async def on_sessions_list(self, chat_id: str) -> None:
-        items = [self._slim(e) for e in self._session_store.list_sessions()]
+        items = self._session_items()
         active = self._session_by_chat.get(chat_id, "")
         await self._registry.send_frame(chat_id, P.sessions(items, active))
 
@@ -345,7 +353,8 @@ class EvenG2Adapter(BasePlatformAdapter):
         entry = self._session_store.get_or_create_session(source)
         self._session_by_chat[chat_id] = entry.session_id
         self._status.update(connected=self._registry.count(),
-                            active_session=entry.display_name or entry.session_id)
+                            active_session=self._session_title(entry.session_id)
+                            or entry.display_name or entry.session_id)
         session_key = self._session_key_for(source)
         self._registry.stream_state(chat_id).reset()
         await self.handle_message(MessageEvent(
@@ -373,6 +382,7 @@ class EvenG2Adapter(BasePlatformAdapter):
                 await asyncio.sleep(self._idle_poll_seconds)
                 while session_key in self._active_sessions:
                     await asyncio.sleep(self._idle_poll_seconds)
+            await self.on_sessions_list(chat_id)
             await self._registry.send_frame(chat_id, P.turn_done())
         finally:
             if self._poller_tasks.get(chat_id) is asyncio.current_task():

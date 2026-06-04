@@ -16,8 +16,9 @@ class FakeWS:
 
 
 class FakeDB:
-    def __init__(self, messages=None):
+    def __init__(self, messages=None, titles=None):
         self.messages = messages or {}
+        self.titles = titles or {}
 
     def get_messages(self, session_id):
         value = self.messages.get(session_id, [])
@@ -25,21 +26,31 @@ class FakeDB:
             raise value
         return value
 
+    def get_session_title(self, session_id):
+        value = self.titles.get(session_id)
+        if isinstance(value, Exception):
+            raise value
+        return value
 
-def _entry(sid, name, inp, out):
+
+def _entry(sid, name, inp, out, updated=None):
+    updated = updated or datetime.now()
     return SessionEntry(session_key="k", session_id=sid,
-                        created_at=datetime.now(), updated_at=datetime.now(),
+                        created_at=updated, updated_at=updated,
                         display_name=name, input_tokens=inp, output_tokens=out)
 
 
 class FakeStore:
-    def __init__(self, messages=None):
+    def __init__(self, messages=None, titles=None):
         self.switched = None
         self.reset = None
-        self._db = FakeDB(messages)
+        self._db = FakeDB(messages, titles)
 
     def list_sessions(self, active_minutes=None):
-        return [_entry("s1", "One", 2, 3), _entry("s2", "Two", 0, 0)]
+        return [
+            _entry("s1", "One", 2, 3, datetime.fromtimestamp(2)),
+            _entry("s2", "Two", 0, 0, datetime.fromtimestamp(1)),
+        ]
     def switch_session(self, session_key, target_session_id):
         self.switched = (session_key, target_session_id)
         return _entry(target_session_id, "Switched", 0, 0)
@@ -68,6 +79,31 @@ async def test_sessions_list_maps_entries(tmp_path):
     assert ids == ["s1", "s2"]
     one = frame["items"][0]
     assert one["title"] == "One" and one["tokens"] == 5
+
+
+@pytest.mark.asyncio
+async def test_sessions_list_prefers_generated_db_title_and_dedupes(tmp_path):
+    a = _adapter(tmp_path)
+
+    class TitledStore(FakeStore):
+        def __init__(self):
+            super().__init__(titles={"s1": "Generated topic"})
+
+        def list_sessions(self, active_minutes=None):
+            return [
+                _entry("s1", "New session", 0, 0, datetime.fromtimestamp(2)),
+                _entry("s1", "Even G2", 0, 0, datetime.fromtimestamp(1)),
+                _entry("s2", "Two", 0, 0, datetime.fromtimestamp(0)),
+            ]
+
+    a.set_session_store(TitledStore())
+    ws = FakeWS(); a._registry.register("g2", ws)
+
+    await a.on_sessions_list("g2")
+
+    frame = next(m for m in ws.sent if m["t"] == "sessions")
+    assert [it["id"] for it in frame["items"]] == ["s1", "s2"]
+    assert frame["items"][0]["title"] == "Generated topic"
 
 
 @pytest.mark.asyncio

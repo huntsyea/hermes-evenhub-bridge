@@ -17,6 +17,9 @@ class FakeWS:
 
 
 class FakeStore:
+    def list_sessions(self, active_minutes=None):
+        return [self.get_or_create_session(None)]
+
     def get_or_create_session(self, source, force_new=False):
         return SessionEntry(session_key="k1", session_id="sess1",
                             created_at=datetime.now(), updated_at=datetime.now(),
