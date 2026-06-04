@@ -27,6 +27,7 @@ log = logging.getLogger("hermes-evenhub-bridge")
 
 HISTORY_MAX_ITEMS = 80
 HISTORY_MAX_CHARS = 12_000
+SESSION_LIST_LIMIT = 250
 
 
 class EvenG2Adapter(BasePlatformAdapter):
@@ -140,7 +141,25 @@ class EvenG2Adapter(BasePlatformAdapter):
         return None
 
     def _session_items(self) -> list[dict[str, Any]]:
-        return session_items(self._session_store.list_sessions(), self._session_title)
+        return session_items(
+            self._session_store.list_sessions(),
+            self._session_title,
+            self._rich_sessions(),
+        )
+
+    def _rich_sessions(self) -> list[dict[str, Any]]:
+        db = getattr(self._session_store, "_db", None)
+        list_sessions_rich = getattr(db, "list_sessions_rich", None)
+        if not callable(list_sessions_rich):
+            return []
+        try:
+            return list_sessions_rich(
+                limit=SESSION_LIST_LIMIT,
+                order_by_last_active=True,
+            )
+        except Exception as e:
+            log.debug("could not load rich session list: %s", e)
+            return []
 
     async def on_sessions_list(self, chat_id: str) -> None:
         items = self._session_items()

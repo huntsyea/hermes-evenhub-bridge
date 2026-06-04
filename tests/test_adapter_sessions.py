@@ -16,9 +16,10 @@ class FakeWS:
 
 
 class FakeDB:
-    def __init__(self, messages=None, titles=None):
+    def __init__(self, messages=None, titles=None, rich_sessions=None):
         self.messages = messages or {}
         self.titles = titles or {}
+        self.rich_sessions = rich_sessions or []
 
     def get_messages(self, session_id):
         value = self.messages.get(session_id, [])
@@ -32,6 +33,9 @@ class FakeDB:
             raise value
         return value
 
+    def list_sessions_rich(self, **_kwargs):
+        return self.rich_sessions
+
 
 def _entry(sid, name, inp, out, updated=None):
     updated = updated or datetime.now()
@@ -41,10 +45,10 @@ def _entry(sid, name, inp, out, updated=None):
 
 
 class FakeStore:
-    def __init__(self, messages=None, titles=None):
+    def __init__(self, messages=None, titles=None, rich_sessions=None):
         self.switched = None
         self.reset = None
-        self._db = FakeDB(messages, titles)
+        self._db = FakeDB(messages, titles, rich_sessions)
 
     def list_sessions(self, active_minutes=None):
         return [
@@ -104,6 +108,30 @@ async def test_sessions_list_prefers_generated_db_title_and_dedupes(tmp_path):
     frame = next(m for m in ws.sent if m["t"] == "sessions")
     assert [it["id"] for it in frame["items"]] == ["s1", "s2"]
     assert frame["items"][0]["title"] == "Generated topic"
+
+
+@pytest.mark.asyncio
+async def test_sessions_list_includes_historical_rich_sessions(tmp_path):
+    a = _adapter(tmp_path)
+    a.set_session_store(FakeStore(
+        rich_sessions=[
+            {"id": "newer", "title": None, "preview": "", "started_at": 30.0, "last_active": 30.0},
+            {"id": "older", "title": None, "preview": "", "started_at": 20.0, "last_active": 20.0},
+            {"id": "titled", "title": "Generated title", "started_at": 10.0, "last_active": 10.0},
+        ],
+    ))
+    ws = FakeWS(); a._registry.register("g2", ws)
+
+    await a.on_sessions_list("g2")
+
+    frame = next(m for m in ws.sent if m["t"] == "sessions")
+    ids = [it["id"] for it in frame["items"]]
+    assert ids[:3] == ["newer", "older", "titled"]
+    assert [it["title"] for it in frame["items"][:3]] == [
+        "New session",
+        "New session",
+        "Generated title",
+    ]
 
 
 @pytest.mark.asyncio
