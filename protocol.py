@@ -9,6 +9,7 @@ CLIENT_TYPES = {
     "stop",
     "audio.start",
     "audio.stop",
+    "page.open",
 }
 
 
@@ -64,3 +65,12 @@ def turn_done():
 
 def error(msg):
     return json.dumps({"t": "error", "msg": msg})
+
+
+def page_data(url, title, text, images, links):
+    return json.dumps({"t": "page.data", "url": url, "title": title,
+                       "text": text, "images": images, "links": links})
+
+
+def page_error(url, msg):
+    return json.dumps({"t": "page.error", "url": url, "msg": msg})

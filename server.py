@@ -130,6 +130,12 @@ class BridgeServer:
             await self._adapter.on_sessions_new(chat_id)
         elif t == "stop":
             await self._adapter.on_stop(chat_id)
+        elif t == "page.open":
+            url = msg.get("url")
+            if not url:
+                await ws.send(P.error("bad message"))
+            else:
+                await self._adapter.on_page_open(chat_id, url)
 
     def _adapter_active(self, chat_id: str) -> str:
         return getattr(self._adapter, "_session_by_chat", {}).get(chat_id, "")

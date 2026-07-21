@@ -22,6 +22,7 @@ from .status import StatusFile
 from .session_items import session_items
 from .tool_labels import tool_label
 from .asr import load_active, resolve_active_name
+from . import discord_mirror
 
 log = logging.getLogger("hermes-evenhub-bridge")
 
@@ -50,12 +51,15 @@ class EvenG2Adapter(BasePlatformAdapter):
         self._transcriber = None
         self._active_name = None
         self._suppressed_command_output: dict[str, int] = {}
+        # chat_id -> {"q": question, "parts": [cumulative assistant texts]}
+        # while a turn is in flight; used to mirror Q&A to Discord.
+        self._mirror_turns: dict[str, dict[str, Any]] = {}
 
     @property
     def bound_port(self) -> int:
         return self._server.port
 
-    async def connect(self) -> bool:
+    async def connect(self, *, is_reconnect: bool = False) -> bool:
         from . import net
         loop = asyncio.get_running_loop()
         # Tailscale detection shells out to the CLI — keep it off the event loop.
@@ -102,6 +106,9 @@ class EvenG2Adapter(BasePlatformAdapter):
         delta = state.delta_for(content or "")
         if delta:
             await self._registry.send_frame(chat_id, P.assistant_delta(delta))
+        turn = self._mirror_turns.get(chat_id)
+        if turn is not None:
+            turn["parts"].append(str(content or ""))
         return SendResult(success=True, message_id="g2")
 
     async def edit_message(self, chat_id, message_id, content, *, finalize=False) -> SendResult:
@@ -111,6 +118,13 @@ class EvenG2Adapter(BasePlatformAdapter):
         delta = state.delta_for(content or "")
         if delta:
             await self._registry.send_frame(chat_id, P.assistant_delta(delta))
+        turn = self._mirror_turns.get(chat_id)
+        if turn is not None:
+            # content is the cumulative text of the current message.
+            if turn["parts"]:
+                turn["parts"][-1] = str(content or "")
+            else:
+                turn["parts"].append(str(content or ""))
         return SendResult(success=True, message_id=message_id or "g2")
 
     def _session_key_for(self, source):
@@ -376,6 +390,17 @@ class EvenG2Adapter(BasePlatformAdapter):
                             or entry.display_name or entry.session_id)
         session_key = self._session_key_for(source)
         self._registry.stream_state(chat_id).reset()
+        if discord_mirror.enabled():
+            # Interrupt-and-redirect: flush a still-in-flight turn before
+            # overwriting so its partial answer still reaches Discord.
+            stale = self._mirror_turns.pop(chat_id, None)
+            if stale is not None:
+                answer = "\n\n".join(
+                    p.strip() for p in stale["parts"] if p and p.strip())
+                asyncio.create_task(discord_mirror.mirror_turn(
+                    stale["q"], f"{answer}\n\n_(interrupted)_" if answer
+                    else "_(interrupted before reply)_"))
+            self._mirror_turns[chat_id] = {"q": text, "parts": []}
         await self.handle_message(MessageEvent(
             text=text, message_type=MessageType.TEXT, source=source))
         # Replace any stale poller for this device so a previous turn can't emit
@@ -385,6 +410,40 @@ class EvenG2Adapter(BasePlatformAdapter):
             old.cancel()
         self._poller_tasks[chat_id] = asyncio.create_task(
             self._emit_done_when_idle(session_key, chat_id))
+
+    def _pairing_approved(self, chat_id: str) -> bool:
+        """Same authorization layer messages get via the gateway: only
+        pairing-approved devices may drive page fetches. Fail closed."""
+        try:
+            from gateway.pairing import PairingStore
+            return PairingStore().is_approved("even_g2", chat_id)
+        except Exception as e:
+            log.warning("pairing check failed for %s: %s", chat_id, e)
+            return False
+
+    async def on_page_open(self, chat_id: str, url: str) -> None:
+        """Fetch a linked page and stream it back as glasses-friendly
+        text + greyscale images. Fetch runs in an executor; failures are
+        reported as page.error frames and never raise."""
+        if not self._pairing_approved(chat_id):
+            await self._registry.send_frame(chat_id, P.page_error(
+                url, "device not paired — approve it with `hermes pairing approve even_g2 <code>`"))
+            return
+        from . import page_fetch
+        loop = asyncio.get_running_loop()
+        try:
+            page = await loop.run_in_executor(None, page_fetch.fetch_page, url)
+        except Exception as e:
+            log.warning("page fetch failed for %s: %s", url, e)
+            await self._registry.send_frame(
+                chat_id, P.page_error(url, str(e)[:200]))
+            return
+        log.info("page fetched for %s: %s (%d chars, %d images, %d links)",
+                 chat_id, page["url"], len(page["text"]),
+                 len(page["images"]), len(page["links"]))
+        await self._registry.send_frame(chat_id, P.page_data(
+            page["url"], page["title"], page["text"], page["images"],
+            page["links"]))
 
     async def _emit_done_when_idle(self, session_key: str, chat_id: str) -> None:
         try:
@@ -403,6 +462,12 @@ class EvenG2Adapter(BasePlatformAdapter):
                     await asyncio.sleep(self._idle_poll_seconds)
             await self.on_sessions_list(chat_id)
             await self._registry.send_frame(chat_id, P.turn_done())
+            turn = self._mirror_turns.pop(chat_id, None)
+            if turn is not None:
+                answer = "\n\n".join(
+                    p.strip() for p in turn["parts"] if p and p.strip())
+                asyncio.create_task(
+                    discord_mirror.mirror_turn(turn["q"], answer))
         finally:
             if self._poller_tasks.get(chat_id) is asyncio.current_task():
                 self._poller_tasks.pop(chat_id, None)
