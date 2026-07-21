@@ -45,7 +45,17 @@ class WhisperBackend:
     def _load_model(self) -> None:
         import faster_whisper  # local import keeps startup fast
 
-        self._model = faster_whisper.WhisperModel(self._model_size)
+        # device="auto" picks CUDA when a GPU is present and then dies at
+        # encode time without cuBLAS/cuDNN DLLs (RuntimeError: Library
+        # cublas64_12.dll is not found). Default to CPU; opt back into GPU
+        # via EVENHUB_WHISPER_DEVICE once the CUDA libraries are installed.
+        device = os.environ.get("EVENHUB_WHISPER_DEVICE", "cpu")
+        compute_type = os.environ.get(
+            "EVENHUB_WHISPER_COMPUTE", "int8" if device == "cpu" else "default"
+        )
+        self._model = faster_whisper.WhisperModel(
+            self._model_size, device=device, compute_type=compute_type
+        )
 
     def transcribe(self, pcm_bytes: bytes) -> str:
         if not pcm_bytes:

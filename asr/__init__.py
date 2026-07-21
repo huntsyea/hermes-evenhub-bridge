@@ -101,7 +101,10 @@ def load_active(bridge_cfg) -> FallbackTranscriber:
     """
     name = resolve_active_name(bridge_cfg)
     primary = _build_backend(name, bridge_cfg)
-    fallback = WhisperBackend("tiny")
+    # "tiny" is near-unusable for Japanese; "small" is the smallest size with
+    # acceptable multilingual accuracy and still transcribes short utterances
+    # in a couple of seconds on CPU int8.
+    fallback = WhisperBackend(os.environ.get("EVENHUB_WHISPER_FALLBACK", "small"))
     return FallbackTranscriber(primary, fallback)
 
 
