@@ -55,7 +55,8 @@ hermes pairing approve even_g2 <code>
 
 ## Voice / ASR
 
-Works out of the box with **`whisper-tiny`** (CPU; weights self-download on first use).
+Works out of the box with **`whisper-small`** (CPU `int8`; weights self-download on first
+use). Override the size with `EVENHUB_WHISPER_FALLBACK`.
 For the faster default (`parakeet-tdt-0.6b-v2`, Apple Neural Engine) on **macOS (Apple
 Silicon)**, click **Download** on the dashboard's transcription panel — it auto-fetches
 the prebuilt sidecar binary and model weights. Or from the CLI:

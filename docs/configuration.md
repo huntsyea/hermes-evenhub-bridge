@@ -16,6 +16,11 @@ All configuration is environment variables (in `~/.hermes/.env` or the gateway e
 | `EVENHUB_ASR_SIDECAR_REPO` | `huntsyea/hermes-evenhub-bridge` | GitHub repo to fetch the prebuilt sidecar from (forks/mirrors). |
 | `EVENHUB_ASR_SIDECAR_TEAM_ID` | `5J4FVDUC9M` | Apple Team ID the downloaded sidecar must be signed by (`""` disables the check). |
 | `EVENHUB_ASR_STATE` | `~/.hermes/even_g2_asr.json` | Active-model state file (written by `asr set`). |
+| `EVENHUB_WHISPER_DEVICE` | `cpu` | Device for the whisper fallback. Defaults to CPU because an auto-selected CUDA device dies at encode time without cuBLAS/cuDNN; set `cuda` once those libraries are present. |
+| `EVENHUB_WHISPER_COMPUTE` | `int8` on CPU | Compute type passed to `WhisperModel`. |
+| `EVENHUB_WHISPER_FALLBACK` | `small` | Whisper model size used when the primary ASR backend is unavailable. `tiny` is near-unusable for non-English speech, so `small` is the default floor. |
+| `EVENHUB_PAGE_FETCH_ALLOW_PRIVATE` | — | Set to `1` to let `page.open` reach hosts that resolve to non-public addresses. Off by default: page URLs originate in model output, so LAN/loopback/metadata endpoints are refused (see [SECURITY.md](../SECURITY.md)). |
+| `EVENHUB_DISCORD_MIRROR_CHANNEL` | falls back to `DISCORD_HOME_CHANNEL` | Discord text-channel id for the Q&A mirror: each glasses question opens a thread there with the answer inside. Mirroring is off unless this (or the fallback) and `DISCORD_BOT_TOKEN` are set. |
 
 ## Recommended setup
 
@@ -63,12 +68,18 @@ transcript.
 |---|---|---|---|
 | `parakeet-tdt-0.6b-v2` | Swift FluidAudio sidecar | macOS (Apple Silicon) | **Default.** Fast, Apple Neural Engine. |
 | `parakeet-tdt-0.6b-v3` | Swift FluidAudio sidecar | macOS (Apple Silicon) | Multilingual. |
-| `whisper-tiny` | faster-whisper (CPU) | any | **Universal fallback.** Weights self-download on first use. |
+| `whisper-tiny` | faster-whisper (CPU) | any | Smallest/fastest whisper size; weak on non-English speech. |
+
+The **universal fallback** is not a registry entry: whenever the active backend is
+unavailable, transcription falls back to whisper at the size given by
+`EVENHUB_WHISPER_FALLBACK` (default `small`), on the device given by
+`EVENHUB_WHISPER_DEVICE` (default `cpu`). Weights self-download on first use.
 
 - **Active model resolution:** `EVENHUB_ASR_MODEL` env > state file (`asr set`) > default.
 - **Sidecar auto-download:** on macOS/arm64, the first parakeet download fetches the prebuilt
   binary from this repo's Releases (checksum- *and* Developer-ID-signature-verified, streamed
-  to disk). Elsewhere, or on failure, transcription stays on `whisper-tiny`.
+  to disk). Elsewhere, or on failure, transcription stays on the whisper fallback
+  (`whisper-small` on CPU by default).
 - The sidecar binary is **Developer ID signed + notarized** (hardened runtime), so it runs
   without Gatekeeper prompts.
 

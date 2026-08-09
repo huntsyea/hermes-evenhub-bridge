@@ -18,6 +18,7 @@ audio stream). Every frame has a `t` (type) field.
 | `sessions.switch` | `id` | Switch the active session. |
 | `sessions.new` | — | Start a new session (`/new`). |
 | `audio.start` / `audio.stop` | — | Bracket a PCM stream; raw binary frames in between are the audio. |
+| `page.open` | `url` | Fetch a web page (`http`/`https` only) for the glasses page viewer. Pairing-gated like a turn. |
 
 ## Bridge → client
 
@@ -31,4 +32,6 @@ audio stream). Every frame has a `t` (type) field.
 | `active` | `id` | The active session changed. |
 | `history` | `id`, `items`, `ok` | Stored user/assistant stream items for a session; `ok=false` means history could not be loaded. |
 | `transcript` | `text` | A voice transcription result. |
+| `page.data` | `url`, `title`, `text`, `images`, `links` | A fetched page reduced for the display: main-content `text` (≤3000 chars), up to 3 `images` (`{data: base64 PNG ≤288×144 greyscale, width, height}`), and up to 19 in-page `links` (`{url, label}`). |
+| `page.error` | `url`, `msg` | The fetch for `url` failed (bad scheme, blocked host, network error, or unpaired device). |
 | `error` | `msg` | A recoverable error; the connection stays open. |

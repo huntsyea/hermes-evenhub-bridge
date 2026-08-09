@@ -10,6 +10,8 @@
 | `adapter.py` (`EvenG2Adapter`) | The Hermes `BasePlatformAdapter`. Owns the gateway integration: dispatches messages, diffs streamed text into deltas, emits `turn.done`, drives transcription. |
 | `connections.py` | Maps `chat_id → websocket` and holds per-chat `StreamState` (the delta cursor). Survives reconnects without dropping a newer socket. |
 | `asr/` | Pluggable transcription: a registry of backends with automatic whisper fallback. |
+| `page_fetch.py` | Reduces a web page for the 576×288 display: main-content text, greyscale ≤288×144 PNGs, and in-page links. Enforces the `http`/`https`-only + public-address SSRF guard on every redirect hop. |
+| `discord_mirror.py` | Opt-in Q&A mirror: one Discord thread per glasses question, answer posted inside. Fire-and-forget — a mirror failure never breaks a turn. |
 | `hooks.py` | Global tool-call hooks → `tool.start`/`tool.end`, scheduled onto the adapter's loop via `run_coroutine_threadsafe` (hooks may fire off-loop). |
 | `net.py` | Discovers the reachable bridge URL (Tailscale MagicDNS → Tailscale IP → LAN IP) and the bind host. |
 | `setup_flow.py` | Explicit dashboard/CLI setup for the prescribed private WSS path: token generation, loopback env persistence, Tailscale Serve activation, and public URL persistence. |

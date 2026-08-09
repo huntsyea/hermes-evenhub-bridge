@@ -23,7 +23,12 @@ tool-call status, session switching, and transcripts flow back to the glasses' 5
 - **Streams as deltas** — the adapter diffs the gateway's accumulated reply into append-only
   `assistant.delta` frames, and surfaces tool activity (`tool.start`/`tool.end`).
 - **Transcribes voice on-device** — parakeet on the Apple Neural Engine, with a universal
-  `whisper-tiny` fallback.
+  `whisper-small` fallback that runs on CPU (`int8`) so it works on hosts without CUDA
+  libraries and stays usable for non-English speech.
+- **Opens links on the glasses** — `page.open` fetches a page and returns it reduced for the
+  display: main-content text, up to three greyscale images, and its in-page links.
+- **Mirrors Q&A to Discord (opt-in)** — each glasses question becomes one Discord thread with
+  the answer inside; see `EVENHUB_DISCORD_MIRROR_CHANNEL` in [configuration](docs/configuration.md).
 - **Self-installs** — `hermes plugins install` + one gateway restart pulls the Python deps automatically;
   on macOS, the signed ASR sidecar is fetched when you download a parakeet model.
 

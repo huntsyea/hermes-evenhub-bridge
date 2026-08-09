@@ -3,7 +3,8 @@
 ## FAQ
 
 **Do I need the sidecar / a Swift toolchain?**
-No. `whisper-tiny` works everywhere out of the box. The parakeet sidecar is an optional
+No. The whisper fallback (`whisper-small` on CPU by default) works everywhere out of the
+box. The parakeet sidecar is an optional
 macOS speed-up that auto-downloads — you never build it unless you're hacking on it.
 
 **Does it work when my phone is on cellular / a different network?**
