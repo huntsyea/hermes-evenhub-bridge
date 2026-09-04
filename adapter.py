@@ -55,7 +55,10 @@ class EvenG2Adapter(BasePlatformAdapter):
     def bound_port(self) -> int:
         return self._server.port
 
-    async def connect(self) -> bool:
+    async def connect(self, *, is_reconnect: bool = False) -> bool:
+        # `is_reconnect` is passed by the Hermes gateway (>=2026.8.14) on retry;
+        # the bridge rebinds identically either way, so it is accepted and unused.
+        del is_reconnect
         from . import net
         loop = asyncio.get_running_loop()
         # Tailscale detection shells out to the CLI — keep it off the event loop.
