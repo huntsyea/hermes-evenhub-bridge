@@ -38,3 +38,15 @@ async def test_get_chat_info(tmp_path):
     a = _adapter(tmp_path)
     info = await a.get_chat_info("g2")
     assert info == {"name": "g2", "type": "dm"}
+
+
+@pytest.mark.asyncio
+async def test_connect_accepts_gateway_is_reconnect_kwarg(tmp_path):
+    # Hermes gateway (>=2026.8.14) calls adapter.connect(is_reconnect=...) on retry.
+    a = _adapter(tmp_path)
+    ok = await a.connect(is_reconnect=True)
+    try:
+        assert ok is True
+        assert a._running is True
+    finally:
+        await a.disconnect()
