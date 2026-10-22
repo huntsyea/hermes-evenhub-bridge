@@ -61,4 +61,4 @@ Then:
 
 ## License
 
-[MIT](LICENSE) © Hunter Yeagley
+[MIT](LICENSE) © huntsyea
